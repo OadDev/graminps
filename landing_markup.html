@@ -1,0 +1,226 @@
+<style>
+/* ===== LANDING PAGE ===== */
+#landingRoot{display:none;background:var(--surface);color:var(--ink);}
+.lp-nav{position:sticky;top:0;z-index:1040;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);}
+.lp-nav-inner{max-width:1200px;margin:0 auto;padding:.85rem 1.2rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;}
+.lp-brand{display:flex;align-items:center;gap:.6rem;cursor:pointer;}
+.lp-brand .mark{width:40px;height:40px;border-radius:10px;background:var(--gold);display:flex;align-items:center;justify-content:center;color:var(--navy-dark);font-weight:800;font-family:'Poppins',sans-serif;}
+.lp-brand .txt{font-family:'Poppins',sans-serif;font-weight:700;font-size:1.05rem;color:var(--navy);line-height:1;}
+.lp-brand .txt small{display:block;font-size:.66rem;color:var(--ink-soft);font-weight:500;letter-spacing:.04em;text-transform:uppercase;margin-top:2px;}
+.lp-nav-links{display:none;gap:1.6rem;align-items:center;}
+.lp-nav-links a{color:var(--ink-soft);text-decoration:none;font-size:.9rem;font-weight:600;transition:color .2s;}
+.lp-nav-links a:hover{color:var(--navy);}
+.lp-nav-cta{display:flex;gap:.6rem;align-items:center;}
+@media(min-width:900px){.lp-nav-links{display:flex;}}
+
+.lp-section{max-width:1200px;margin:0 auto;padding:4.5rem 1.2rem;}
+.lp-hero{background:linear-gradient(160deg,#0E2A40 0%,#163C5A 55%,#1F5A85 100%);color:#fff;position:relative;overflow:hidden;}
+.lp-hero::after{content:'';position:absolute;right:-120px;top:-120px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(212,160,42,.22),transparent 70%);}
+.lp-hero-grid{display:grid;grid-template-columns:1fr;gap:2.5rem;align-items:center;position:relative;z-index:2;}
+@media(min-width:900px){.lp-hero-grid{grid-template-columns:1.1fr .9fr;gap:3rem;}}
+.lp-eyebrow{display:inline-flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:var(--gold-light);padding:.4rem .9rem;border-radius:999px;font-size:.74rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:1.2rem;}
+.lp-hero h1{font-family:'Poppins',sans-serif;font-weight:800;font-size:2.4rem;line-height:1.12;margin-bottom:1rem;}
+@media(min-width:900px){.lp-hero h1{font-size:3.1rem;}}
+.lp-hero h1 .gold{color:var(--gold-light);}
+.lp-hero p.lead{font-size:1.02rem;color:rgba(255,255,255,.82);max-width:520px;margin-bottom:1.8rem;line-height:1.65;}
+.lp-hero-cta{display:flex;flex-wrap:wrap;gap:.8rem;margin-bottom:1.8rem;}
+.lp-trust{display:flex;flex-wrap:wrap;gap:1.4rem;color:rgba(255,255,255,.8);font-size:.84rem;}
+.lp-trust span{display:flex;align-items:center;gap:.45rem;}
+.lp-trust i{color:var(--gold-light);}
+.lp-hero-img{width:100%;border-radius:18px;}
+
+.lp-sec-head{text-align:center;max-width:640px;margin:0 auto 2.6rem;}
+.lp-sec-head .tag{color:var(--gold);font-weight:700;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;}
+.lp-sec-head h2{font-family:'Poppins',sans-serif;font-weight:700;font-size:1.9rem;color:var(--navy);margin:.5rem 0;}
+.lp-sec-head p{color:var(--ink-soft);font-size:.95rem;}
+
+.lp-cards{display:grid;grid-template-columns:1fr;gap:1.2rem;}
+@media(min-width:640px){.lp-cards{grid-template-columns:1fr 1fr;}}
+@media(min-width:992px){.lp-cards-4{grid-template-columns:repeat(4,1fr);}.lp-cards-3{grid-template-columns:repeat(3,1fr);}}
+.lp-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:1.6rem;box-shadow:var(--shadow-sm);transition:transform .25s,box-shadow .25s;}
+.lp-card:hover{transform:translateY(-5px);box-shadow:var(--shadow-lg);}
+.lp-card .ic{width:52px;height:52px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:1rem;background:var(--info-bg);color:var(--navy);}
+.lp-card h5{font-family:'Poppins',sans-serif;font-weight:700;font-size:1.05rem;color:var(--ink);margin-bottom:.4rem;}
+.lp-card p{color:var(--ink-soft);font-size:.86rem;line-height:1.55;margin:0;}
+
+.lp-alt{background:var(--bg);}
+.lp-steps{display:grid;grid-template-columns:1fr;gap:1.4rem;counter-reset:step;}
+@media(min-width:768px){.lp-steps{grid-template-columns:repeat(3,1fr);}}
+.lp-step{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:1.8rem 1.4rem 1.4rem;}
+.lp-step .num{position:absolute;top:-18px;left:1.4rem;width:40px;height:40px;border-radius:11px;background:var(--navy);color:#fff;font-family:'Poppins',sans-serif;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-md);}
+.lp-step h5{font-family:'Poppins',sans-serif;font-weight:700;font-size:1.02rem;color:var(--ink);margin:.8rem 0 .35rem;}
+.lp-step p{color:var(--ink-soft);font-size:.86rem;margin:0;line-height:1.55;}
+
+.lp-stats{background:var(--navy);color:#fff;}
+.lp-stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;text-align:center;}
+@media(min-width:768px){.lp-stats-grid{grid-template-columns:repeat(4,1fr);}}
+.lp-stat .v{font-family:'Poppins',sans-serif;font-weight:800;font-size:2.2rem;color:var(--gold-light);}
+.lp-stat .l{font-size:.82rem;color:rgba(255,255,255,.78);margin-top:.2rem;}
+
+.lp-partner{display:grid;grid-template-columns:1fr;gap:2rem;align-items:center;}
+@media(min-width:900px){.lp-partner{grid-template-columns:.9fr 1.1fr;}}
+.lp-partner img{width:100%;border-radius:18px;border:1px solid var(--line);background:var(--bg);}
+.lp-partner h2{font-family:'Poppins',sans-serif;font-weight:700;font-size:1.9rem;color:var(--navy);margin-bottom:.8rem;}
+.lp-partner p{color:var(--ink-soft);font-size:.95rem;line-height:1.65;margin-bottom:1.2rem;}
+.lp-partner ul{list-style:none;padding:0;margin:0 0 1.4rem;}
+.lp-partner li{display:flex;align-items:center;gap:.6rem;padding:.35rem 0;font-size:.9rem;color:var(--ink);}
+.lp-partner li i{color:var(--success);}
+
+.lp-footer{background:var(--navy-dark);color:rgba(255,255,255,.72);}
+.lp-footer-grid{max-width:1200px;margin:0 auto;padding:3.5rem 1.2rem 1.5rem;display:grid;grid-template-columns:1fr;gap:2rem;}
+@media(min-width:768px){.lp-footer-grid{grid-template-columns:1.4fr 1fr 1fr;}}
+.lp-footer h6{color:#fff;font-family:'Poppins',sans-serif;font-weight:700;font-size:.95rem;margin-bottom:1rem;}
+.lp-footer a{color:rgba(255,255,255,.72);text-decoration:none;display:block;padding:.25rem 0;font-size:.88rem;}
+.lp-footer a:hover{color:var(--gold-light);}
+.lp-footer .contact-row{display:flex;gap:.6rem;align-items:flex-start;font-size:.86rem;margin-bottom:.7rem;}
+.lp-footer .contact-row i{color:var(--gold-light);margin-top:3px;}
+.lp-copyright{border-top:1px solid rgba(255,255,255,.1);text-align:center;padding:1.1rem;font-size:.8rem;color:rgba(255,255,255,.55);}
+</style>
+
+<div id="landingRoot">
+  <!-- NAVBAR -->
+  <nav class="lp-nav">
+    <div class="lp-nav-inner">
+      <div class="lp-brand" data-testid="lp-brand" onclick="navigateTo('/')">
+        <div class="mark">GP</div>
+        <div class="txt">Gramin PAN Seva<small>PAN Service Portal</small></div>
+      </div>
+      <div class="lp-nav-links">
+        <a href="#lp-services" onclick="document.getElementById('lp-services').scrollIntoView({behavior:'smooth'});return false;">Services</a>
+        <a href="#lp-why" onclick="document.getElementById('lp-why').scrollIntoView({behavior:'smooth'});return false;">Why Us</a>
+        <a href="#lp-how" onclick="document.getElementById('lp-how').scrollIntoView({behavior:'smooth'});return false;">How It Works</a>
+        <a href="#lp-partner" onclick="document.getElementById('lp-partner').scrollIntoView({behavior:'smooth'});return false;">Partner</a>
+        <a href="#lp-contact" onclick="document.getElementById('lp-contact').scrollIntoView({behavior:'smooth'});return false;">Contact</a>
+      </div>
+      <div class="lp-nav-cta">
+        <button class="btn btn-outline-navy btn-sm btn-pill px-3" data-testid="lp-login-btn" onclick="goToLogin()"><i class="fa-solid fa-right-to-bracket me-1"></i> Login</button>
+        <button class="btn btn-gold btn-sm btn-pill px-3 d-none d-sm-inline-block" data-testid="lp-register-btn" onclick="goToRegister()">Become a Partner</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="lp-hero">
+    <div class="lp-section lp-hero-grid">
+      <div>
+        <span class="lp-eyebrow"><i class="fa-solid fa-shield-halved"></i> Authorized PAN Service Network</span>
+        <h1>Apply PAN Card Online — <span class="gold">Anywhere in India</span></h1>
+        <p class="lead">Gramin PAN Seva empowers retailers, distributors and super distributors to process New PAN, corrections, duplicates and Aadhaar-to-PAN lookups — with a wallet-based system and the lowest prices.</p>
+        <div class="lp-hero-cta">
+          <button class="btn btn-gold btn-touch btn-pill px-4" data-testid="lp-hero-get-started" onclick="goToLogin()"><i class="fa-solid fa-arrow-right-to-bracket me-2"></i>Get Started</button>
+          <button class="btn btn-outline-light btn-touch btn-pill px-4" style="border:1.5px solid rgba(255,255,255,.6);color:#fff;" onclick="document.getElementById('lp-services').scrollIntoView({behavior:'smooth'});">Our Services</button>
+        </div>
+        <div class="lp-trust">
+          <span><i class="fa-solid fa-circle-check"></i> NSDL &amp; UTI PAN</span>
+          <span><i class="fa-solid fa-circle-check"></i> Wallet Billing</span>
+          <span><i class="fa-solid fa-circle-check"></i> Pan-India Retailers</span>
+        </div>
+      </div>
+      <div>
+        <img class="lp-hero-img" src="https://static.prod-images.emergentagent.com/jobs/c396f161-dac6-493b-af8f-0045db342075/images/132c64d9f085c5507d201e9707029a20c23be06113d3dcadddb93bffa2d97506.png" alt="PAN card services illustration">
+      </div>
+    </div>
+  </section>
+
+  <!-- SERVICES -->
+  <section class="lp-section" id="lp-services">
+    <div class="lp-sec-head">
+      <span class="tag">Our Services</span>
+      <h2>Everything PAN, in one portal</h2>
+      <p>Process the full range of PAN services for your customers — fast, affordable and reliable.</p>
+    </div>
+    <div class="lp-cards lp-cards-4">
+      <div class="lp-card"><div class="ic" style="background:var(--info-bg);color:var(--info);"><i class="fa-solid fa-id-card"></i></div><h5>New PAN (NSDL)</h5><p>Apply for a brand new PAN card for individuals and businesses with a guided 9-step form.</p></div>
+      <div class="lp-card"><div class="ic" style="background:var(--warning-bg);color:var(--warning);"><i class="fa-solid fa-file-pen"></i></div><h5>Correction / CSF</h5><p>Update name, date of birth, photo or signature and reprint corrected PAN cards.</p></div>
+      <div class="lp-card"><div class="ic" style="background:var(--success-bg);color:var(--success);"><i class="fa-solid fa-magnifying-glass"></i></div><h5>Missing PAN Find</h5><p>Find a PAN number using only the Aadhaar card — quick lookup at the lowest price.</p></div>
+      <div class="lp-card"><div class="ic" style="background:var(--hold-bg);color:var(--hold);"><i class="fa-solid fa-truck-fast"></i></div><h5>PAN ReOrder</h5><p>Order a physical PAN card delivered by post for lost or damaged cards.</p></div>
+    </div>
+  </section>
+
+  <!-- WHY US -->
+  <section class="lp-alt" id="lp-why">
+    <div class="lp-section">
+      <div class="lp-sec-head">
+        <span class="tag">Why Choose Us</span>
+        <h2>Built for India's retailer network</h2>
+        <p>A trusted, government-grade platform designed for villages and towns across the country.</p>
+      </div>
+      <div class="lp-cards lp-cards-3">
+        <div class="lp-card"><div class="ic"><i class="fa-solid fa-wallet"></i></div><h5>Instant Wallet Billing</h5><p>Recharge your wallet and pay per application automatically — no waiting, no paperwork.</p></div>
+        <div class="lp-card"><div class="ic"><i class="fa-solid fa-tags"></i></div><h5>Lowest Prices</h5><p>Transparent, competitive pricing on every service so you earn the best margins.</p></div>
+        <div class="lp-card"><div class="ic"><i class="fa-solid fa-shield-halved"></i></div><h5>Secure &amp; Compliant</h5><p>Government-grade security with role-based access and full audit trails.</p></div>
+        <div class="lp-card"><div class="ic"><i class="fa-solid fa-sitemap"></i></div><h5>Hierarchy Management</h5><p>Super distributors, distributors and retailers — manage your entire downline.</p></div>
+        <div class="lp-card"><div class="ic"><i class="fa-solid fa-bolt"></i></div><h5>Fast Processing</h5><p>Submit applications in minutes and track status from Submitted to Approved.</p></div>
+        <div class="lp-card"><div class="ic"><i class="fa-solid fa-headset"></i></div><h5>Dedicated Support</h5><p>Raise tickets and get help from our support team whenever you need it.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="lp-section" id="lp-how">
+    <div class="lp-sec-head">
+      <span class="tag">How It Works</span>
+      <h2>Start earning in 3 simple steps</h2>
+    </div>
+    <div class="lp-steps">
+      <div class="lp-step"><div class="num">1</div><h5>Register &amp; Get Approved</h5><p>Sign up as a retailer with your details and verify your email. Our team approves your account.</p></div>
+      <div class="lp-step"><div class="num">2</div><h5>Recharge Your Wallet</h5><p>Add funds to your wallet via UTR. Once approved by admin, your balance is ready to use.</p></div>
+      <div class="lp-step"><div class="num">3</div><h5>Submit PAN Applications</h5><p>Fill the form, upload documents and submit. The charge is auto-debited and you track the status.</p></div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="lp-stats">
+    <div class="lp-section">
+      <div class="lp-stats-grid">
+        <div class="lp-stat"><div class="v">24,000+</div><div class="l">PAN Applications Processed</div></div>
+        <div class="lp-stat"><div class="v">8,900+</div><div class="l">Active Partners</div></div>
+        <div class="lp-stat"><div class="v">28</div><div class="l">States Covered</div></div>
+        <div class="lp-stat"><div class="v">99.2%</div><div class="l">Approval Rate</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PARTNER -->
+  <section class="lp-alt" id="lp-partner">
+    <div class="lp-section lp-partner">
+      <img src="https://static.prod-images.emergentagent.com/jobs/c396f161-dac6-493b-af8f-0045db342075/images/67b29d11938f0a0414202326d9586679219b1bda55d8f014aedb8d2a5e3ad0ec.png" alt="Distribution partner network">
+      <div>
+        <h2>Become a Gramin PAN Seva partner</h2>
+        <p>Grow your business by offering PAN services in your community. Join our network as a retailer, distributor or super distributor and manage your own downline.</p>
+        <ul>
+          <li><i class="fa-solid fa-circle-check"></i> Free onboarding &amp; verified certificate</li>
+          <li><i class="fa-solid fa-circle-check"></i> Best-in-class commissions &amp; wallet system</li>
+          <li><i class="fa-solid fa-circle-check"></i> Manage distributors and retailers under you</li>
+          <li><i class="fa-solid fa-circle-check"></i> Dedicated dashboards and reports</li>
+        </ul>
+        <button class="btn btn-navy btn-touch btn-pill px-4" data-testid="lp-partner-cta" onclick="goToRegister()"><i class="fa-solid fa-user-plus me-2"></i>Become a Partner</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="lp-footer" id="lp-contact">
+    <div class="lp-footer-grid">
+      <div>
+        <div class="lp-brand mb-3"><div class="mark">GP</div><div class="txt" style="color:#fff;">Gramin PAN Seva<small style="color:rgba(255,255,255,.6);">PAN Service Portal</small></div></div>
+        <p style="font-size:.88rem;max-width:320px;">Authorized to process NSDL &amp; UTI PAN card services across India through our trusted retailer network.</p>
+      </div>
+      <div>
+        <h6>Contact</h6>
+        <div class="contact-row"><i class="fa-solid fa-location-dot"></i><span>Guwahati, Assam — 781001, India</span></div>
+        <div class="contact-row"><i class="fa-solid fa-phone"></i><span>+91 98640 00000 &middot; 8:00 AM – 7:30 PM</span></div>
+        <div class="contact-row"><i class="fa-solid fa-envelope"></i><span>support@graminpanseva.in</span></div>
+      </div>
+      <div>
+        <h6>Quick Links</h6>
+        <a href="#lp-services" onclick="document.getElementById('lp-services').scrollIntoView({behavior:'smooth'});return false;">Services</a>
+        <a href="#lp-why" onclick="document.getElementById('lp-why').scrollIntoView({behavior:'smooth'});return false;">Why Us</a>
+        <a href="#lp-how" onclick="document.getElementById('lp-how').scrollIntoView({behavior:'smooth'});return false;">How It Works</a>
+        <a onclick="goToLogin()" style="cursor:pointer;">Login to Portal</a>
+        <a onclick="goToRegister()" style="cursor:pointer;">Become a Partner</a>
+      </div>
+    </div>
+    <div class="lp-copyright">© 2026 Gramin PAN Seva. All Rights Reserved.</div>
+  </footer>
+</div>

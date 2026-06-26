@@ -151,9 +151,8 @@ function goTo(viewId){
 function doLogout(){
   localStorage.removeItem('gps_token');
   APP.role = null; APP.user = null;
-  document.getElementById('appShell').style.display = 'none';
-  document.getElementById('authRoot').style.display = 'block';
-  showAuthView('login');
+  history.pushState({}, '', '/');
+  route();
 }
 
 /* ---------------- AUTH ---------------- */
@@ -183,6 +182,7 @@ async function handleLogin(e){
   }catch(err){ showToast('Login Failed', err.message, 'danger'); }
 }
 function enterApp(){
+  const lp = document.getElementById('landingRoot'); if(lp) lp.style.display = 'none';
   document.getElementById('authRoot').style.display = 'none';
   document.getElementById('appShell').style.display = 'block';
   document.getElementById('mobileRoleLabel').textContent = APP.user.role_label;
@@ -825,12 +825,33 @@ function renderPersonalProfile(){
   document.getElementById('profileRoleDisplay').textContent = APP.user.role_label + ' • ' + APP.user.user_code;
 }
 
-/* ---------------- BOOT ---------------- */
-window.addEventListener('DOMContentLoaded', async ()=>{
+/* ---------------- ROUTER (/ = homepage, anything else = web app) ---------------- */
+function showLandingOnly(){
+  const lp = document.getElementById('landingRoot'); if(lp) lp.style.display = 'block';
+  document.getElementById('authRoot').style.display = 'none';
+  document.getElementById('appShell').style.display = 'none';
+  window.scrollTo({top:0});
+}
+function showAuthOnly(){
+  const lp = document.getElementById('landingRoot'); if(lp) lp.style.display = 'none';
+  document.getElementById('appShell').style.display = 'none';
+  document.getElementById('authRoot').style.display = 'block';
+}
+async function route(){
+  const path = location.pathname;
+  if(path === '/' || path === ''){ showLandingOnly(); return; }
   const t = localStorage.getItem('gps_token');
   if(t){
     try{ const u = await api('/auth/me'); APP.user = u; APP.role = u.role; enterApp(); return; }
     catch(e){ localStorage.removeItem('gps_token'); }
   }
+  showAuthOnly();
   showAuthView('login');
-});
+}
+function navigateTo(path){ history.pushState({}, '', path); route(); }
+function goToLogin(){ navigateTo('/login'); }
+function goToRegister(){ history.pushState({}, '', '/login'); showAuthOnly(); showAuthView('register'); }
+
+/* ---------------- BOOT ---------------- */
+window.addEventListener('DOMContentLoaded', ()=>{ route(); });
+window.addEventListener('popstate', ()=>{ route(); });
