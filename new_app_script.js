@@ -913,6 +913,7 @@ function showAuthOnly(){
 }
 async function route(){
   const path = location.pathname;
+  if(path.startsWith('/dev')){ showDevOnly(); return; }
   if(path === '/' || path === ''){ showLandingOnly(); return; }
   const t = localStorage.getItem('gps_token');
   if(t){
@@ -925,6 +926,64 @@ async function route(){
 function navigateTo(path){ history.pushState({}, '', path); route(); }
 function goToLogin(){ navigateTo('/login'); }
 function goToRegister(){ history.pushState({}, '', '/login'); showAuthOnly(); showAuthView('register'); }
+
+/* ---------------- DEVELOPER CONSOLE (hidden /developer page) ---------------- */
+async function devApi(path, {method='GET', body=null}={}){
+  const t = localStorage.getItem('gps_dev_token');
+  const opts = { method, headers:{'Content-Type':'application/json', ...(t ? {'Authorization':'Bearer '+t} : {})} };
+  if(body) opts.body = JSON.stringify(body);
+  const res = await fetch('/api'+path, opts);
+  let data = null; try{ data = await res.json(); }catch(e){}
+  if(!res.ok){ if(res.status === 401){ localStorage.removeItem('gps_dev_token'); } throw new Error((data && data.detail) || 'Request failed'); }
+  return data;
+}
+function showDevOnly(){
+  ['landingRoot','authRoot','appShell'].forEach(id=>{ const e = document.getElementById(id); if(e) e.style.display='none'; });
+  const dev = document.getElementById('devRoot'); if(dev) dev.style.display='flex';
+  const t = localStorage.getItem('gps_dev_token');
+  if(t){ document.getElementById('devLoginCard').style.display='none'; document.getElementById('devPanel').style.display='block'; loadDevAdmin(); }
+  else { document.getElementById('devLoginCard').style.display='block'; document.getElementById('devPanel').style.display='none'; }
+}
+async function devLogin(e){
+  e.preventDefault();
+  const username = document.getElementById('devUsername').value.trim();
+  const password = document.getElementById('devPassword').value;
+  try{
+    const data = await devApi('/dev/login', {method:'POST', body:{username, password}});
+    localStorage.setItem('gps_dev_token', data.token);
+    document.getElementById('devLoginCard').style.display='none';
+    document.getElementById('devPanel').style.display='block';
+    await loadDevAdmin();
+    showToast('Console Unlocked', 'Welcome, developer.', 'success');
+  }catch(err){ showToast('Access Denied', err.message, 'danger'); }
+}
+async function loadDevAdmin(){
+  try{ const a = await devApi('/dev/admin');
+    document.getElementById('devCurrentAdminId').textContent = a.user_id;
+    document.getElementById('devNewUserId').value = a.user_id;
+  }catch(err){ showDevOnly(); }
+}
+async function saveAdminCreds(e){
+  e.preventDefault();
+  const user_id = document.getElementById('devNewUserId').value.trim();
+  const password = document.getElementById('devNewPassword').value;
+  if(!user_id){ showToast('Required', 'Admin Login ID is required.', 'warning'); return; }
+  const body = { user_id }; if(password) body.password = password;
+  try{
+    const r = await devApi('/dev/admin', {method:'POST', body});
+    document.getElementById('devCurrentAdminId').textContent = r.user_id;
+    document.getElementById('devNewPassword').value = '';
+    showToast('Saved', r.message + ' New Login ID: ' + r.user_id, 'success');
+  }catch(err){ showToast('Error', err.message, 'danger'); }
+}
+function devLogout(){
+  localStorage.removeItem('gps_dev_token');
+  document.getElementById('devLoginCard').style.display='block';
+  document.getElementById('devPanel').style.display='none';
+  document.getElementById('devUsername').value='';
+  document.getElementById('devPassword').value='';
+  showToast('Locked', 'Developer console locked.', 'info');
+}
 
 /* ---------------- BOOT ---------------- */
 window.addEventListener('DOMContentLoaded', ()=>{ route(); });

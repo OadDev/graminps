@@ -70,3 +70,26 @@ def require_roles(*roles):
         return user
 
     return dep
+
+
+def create_dev_token() -> str:
+    payload = {
+        "sub": "__developer__",
+        "role": "developer",
+        "type": "dev",
+        "exp": datetime.now(timezone.utc) + timedelta(hours=8),
+    }
+    return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
+
+
+async def get_current_dev(request: Request) -> dict:
+    token = _extract_token(request)
+    try:
+        payload = jwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Developer session expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid developer token")
+    if payload.get("type") != "dev" or payload.get("role") != "developer":
+        raise HTTPException(status_code=403, detail="Developer access required")
+    return {"developer": True}

@@ -79,18 +79,21 @@ async def seed():
                 upsert=True,
             )
 
-    # ---------- Users ----------
-    if await db.users.count_documents({}) > 0:
-        return  # already seeded
-
+    # ---------- Seed admin + demo data ONLY on a fresh database ----------
+    # (Admin credentials are managed at runtime via the Developer Console, so they are
+    #  created once here and never overwritten on restart.)
     seed_pw = os.environ.get("SEED_USER_PASSWORD", "Password@123")
     admin_pw = os.environ.get("ADMIN_PASSWORD", "Admin@123")
-    admin_code = os.environ.get("ADMIN_USER_ID", "AD-0001")
+    admin_code = os.environ.get("ADMIN_USER_ID", "ADMIN")
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@graminpanseva.in")
+
+    if await db.users.count_documents({}) > 0:
+        return
 
     admin_id = str(uuid.uuid4())
     await db.users.insert_one({
         "id": admin_id, "user_code": admin_code, "name": "Admin Office",
-        "email": os.environ.get("ADMIN_EMAIL", "admin@graminpanseva.in"),
+        "email": admin_email,
         "mobile": "9000000000", "password_hash": hash_password(admin_pw),
         "role": "superadmin", "status": "Active", "parent_id": None, "ancestors": [],
         "wallet_balance": 0.0, "shop_name": "Gramin PAN Seva HQ", "address": "Head Office",

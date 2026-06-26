@@ -447,6 +447,54 @@ h1,h2,h3,h4,h5,h6,.font-display{font-family:'Poppins',sans-serif;}
 .lp-copyright{border-top:1px solid rgba(255,255,255,.1);text-align:center;padding:1.1rem;font-size:.8rem;color:rgba(255,255,255,.55);}
 </style>
 
+<style>
+/* ===== DEVELOPER CONSOLE (hidden /developer page) ===== */
+#devRoot{display:none;min-height:100vh;background:#0E1A24;color:#E6EDF3;align-items:center;justify-content:center;padding:1.5rem;font-family:'Inter',sans-serif;}
+#devRoot .dev-card{width:100%;max-width:440px;background:#14222E;border:1px solid #20323F;border-radius:16px;padding:2rem;box-shadow:0 24px 64px rgba(0,0,0,.45);}
+#devRoot h3{font-family:'Poppins',sans-serif;font-weight:700;font-size:1.3rem;margin:0 0 .2rem;}
+#devRoot .dev-sub{color:#8aa0b0;font-size:.82rem;margin-bottom:1.4rem;}
+#devRoot label{font-size:.76rem;color:#9fb3c2;margin-bottom:.35rem;display:block;}
+#devRoot input{width:100%;background:#0E1A24;border:1px solid #2a3f4f;border-radius:9px;padding:.7rem .9rem;color:#E6EDF3;margin-bottom:1rem;font-size:.9rem;}
+#devRoot input:focus{outline:none;border-color:#D4A02A;box-shadow:0 0 0 3px rgba(212,160,42,.15);}
+#devRoot .dev-btn{width:100%;background:#D4A02A;color:#14222E;border:none;border-radius:9px;padding:.8rem;font-weight:700;cursor:pointer;font-size:.9rem;transition:background .2s;}
+#devRoot .dev-btn:hover{background:#e0ad36;}
+#devRoot .dev-tag{display:inline-flex;align-items:center;gap:.4rem;background:#1d2f3c;color:#D4A02A;font-size:.66rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:.32rem .7rem;border-radius:999px;margin-bottom:1.1rem;}
+#devRoot .dev-link{color:#8aa0b0;font-size:.78rem;text-align:center;margin-top:1.1rem;cursor:pointer;}
+#devRoot .dev-link:hover{color:#D4A02A;}
+#devRoot .dev-current{background:#0E1A24;border:1px dashed #2a3f4f;border-radius:9px;padding:.7rem .9rem;margin-bottom:1.2rem;font-size:.82rem;color:#9fb3c2;}
+</style>
+
+<div id="devRoot">
+  <div class="dev-card">
+    <div class="dev-tag"><i class="fa-solid fa-code"></i> Developer Console</div>
+    <div id="devLoginCard">
+      <h3>Developer Login</h3>
+      <div class="dev-sub">Restricted access. For managing Super Admin credentials only.</div>
+      <form onsubmit="devLogin(event)">
+        <label>Developer Username</label>
+        <input id="devUsername" autocomplete="off" placeholder="username" data-testid="dev-username">
+        <label>Developer Password</label>
+        <input id="devPassword" type="password" autocomplete="off" placeholder="password" data-testid="dev-password">
+        <button class="dev-btn" type="submit" data-testid="dev-login-btn">Unlock Console</button>
+      </form>
+    </div>
+    <div id="devPanel" style="display:none;">
+      <h3>Admin Credentials</h3>
+      <div class="dev-sub">Change the Super Admin Login ID and password.</div>
+      <div class="dev-current">Current Admin Login ID: <strong id="devCurrentAdminId" style="color:#E6EDF3;">&mdash;</strong></div>
+      <form onsubmit="saveAdminCreds(event)">
+        <label>New Admin Login ID</label>
+        <input id="devNewUserId" autocomplete="off" placeholder="e.g. ADMIN" data-testid="dev-new-userid">
+        <label>New Admin Password <span style="color:#5d7282;">(leave blank to keep current)</span></label>
+        <input id="devNewPassword" type="password" autocomplete="new-password" placeholder="New password" data-testid="dev-new-password">
+        <button class="dev-btn" type="submit" data-testid="dev-save-btn">Save Admin Credentials</button>
+      </form>
+      <div class="dev-link" onclick="devLogout()"><i class="fa-solid fa-lock me-1"></i> Lock console &amp; sign out</div>
+    </div>
+  </div>
+</div>
+
+
 <div id="landingRoot">
   <!-- NAVBAR -->
   <nav class="lp-nav">
@@ -2793,6 +2841,7 @@ function showAuthOnly(){
 }
 async function route(){
   const path = location.pathname;
+  if(path.startsWith('/dev')){ showDevOnly(); return; }
   if(path === '/' || path === ''){ showLandingOnly(); return; }
   const t = localStorage.getItem('gps_token');
   if(t){
@@ -2805,6 +2854,64 @@ async function route(){
 function navigateTo(path){ history.pushState({}, '', path); route(); }
 function goToLogin(){ navigateTo('/login'); }
 function goToRegister(){ history.pushState({}, '', '/login'); showAuthOnly(); showAuthView('register'); }
+
+/* ---------------- DEVELOPER CONSOLE (hidden /developer page) ---------------- */
+async function devApi(path, {method='GET', body=null}={}){
+  const t = localStorage.getItem('gps_dev_token');
+  const opts = { method, headers:{'Content-Type':'application/json', ...(t ? {'Authorization':'Bearer '+t} : {})} };
+  if(body) opts.body = JSON.stringify(body);
+  const res = await fetch('/api'+path, opts);
+  let data = null; try{ data = await res.json(); }catch(e){}
+  if(!res.ok){ if(res.status === 401){ localStorage.removeItem('gps_dev_token'); } throw new Error((data && data.detail) || 'Request failed'); }
+  return data;
+}
+function showDevOnly(){
+  ['landingRoot','authRoot','appShell'].forEach(id=>{ const e = document.getElementById(id); if(e) e.style.display='none'; });
+  const dev = document.getElementById('devRoot'); if(dev) dev.style.display='flex';
+  const t = localStorage.getItem('gps_dev_token');
+  if(t){ document.getElementById('devLoginCard').style.display='none'; document.getElementById('devPanel').style.display='block'; loadDevAdmin(); }
+  else { document.getElementById('devLoginCard').style.display='block'; document.getElementById('devPanel').style.display='none'; }
+}
+async function devLogin(e){
+  e.preventDefault();
+  const username = document.getElementById('devUsername').value.trim();
+  const password = document.getElementById('devPassword').value;
+  try{
+    const data = await devApi('/dev/login', {method:'POST', body:{username, password}});
+    localStorage.setItem('gps_dev_token', data.token);
+    document.getElementById('devLoginCard').style.display='none';
+    document.getElementById('devPanel').style.display='block';
+    await loadDevAdmin();
+    showToast('Console Unlocked', 'Welcome, developer.', 'success');
+  }catch(err){ showToast('Access Denied', err.message, 'danger'); }
+}
+async function loadDevAdmin(){
+  try{ const a = await devApi('/dev/admin');
+    document.getElementById('devCurrentAdminId').textContent = a.user_id;
+    document.getElementById('devNewUserId').value = a.user_id;
+  }catch(err){ showDevOnly(); }
+}
+async function saveAdminCreds(e){
+  e.preventDefault();
+  const user_id = document.getElementById('devNewUserId').value.trim();
+  const password = document.getElementById('devNewPassword').value;
+  if(!user_id){ showToast('Required', 'Admin Login ID is required.', 'warning'); return; }
+  const body = { user_id }; if(password) body.password = password;
+  try{
+    const r = await devApi('/dev/admin', {method:'POST', body});
+    document.getElementById('devCurrentAdminId').textContent = r.user_id;
+    document.getElementById('devNewPassword').value = '';
+    showToast('Saved', r.message + ' New Login ID: ' + r.user_id, 'success');
+  }catch(err){ showToast('Error', err.message, 'danger'); }
+}
+function devLogout(){
+  localStorage.removeItem('gps_dev_token');
+  document.getElementById('devLoginCard').style.display='block';
+  document.getElementById('devPanel').style.display='none';
+  document.getElementById('devUsername').value='';
+  document.getElementById('devPassword').value='';
+  showToast('Locked', 'Developer console locked.', 'info');
+}
 
 /* ---------------- BOOT ---------------- */
 window.addEventListener('DOMContentLoaded', ()=>{ route(); });
