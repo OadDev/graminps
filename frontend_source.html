@@ -503,9 +503,9 @@ h1,h2,h3,h4,h5,h6,.font-display{font-family:'Poppins',sans-serif;}
             <label class="form-label">Profile Photo Upload <span class="required-star">*</span></label>
             <div class="upload-box" onclick="document.getElementById('profPhotoInput').click()">
               <i class="fa-solid fa-camera mb-2 d-block"></i>
-              <div class="fw-semibold" style="font-size:.85rem;">Tap to upload photo</div>
+              <div class="fw-semibold" style="font-size:.85rem;" id="profPhotoLabel">Tap to upload photo</div>
               <div class="text-soft" style="font-size:.72rem;">JPG or PNG, max 2MB</div>
-              <input type="file" id="profPhotoInput" class="d-none" accept="image/*">
+              <input type="file" id="profPhotoInput" class="d-none" accept="image/*" onchange="onRegPhotoChosen(this)">
             </div>
           </div>
           <div class="form-check mb-3">
@@ -930,16 +930,16 @@ h1,h2,h3,h4,h5,h6,.font-display{font-family:'Poppins',sans-serif;}
           <div class="section-title">Document Uploads</div>
           <div class="row g-3">
             <div class="col-6 col-md-3">
-              <div class="upload-box"><i class="fa-solid fa-id-card mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Aadhaar Front</div><div class="text-soft" style="font-size:.68rem;">Tap to upload</div></div>
+              <div class="upload-box" onclick="this.querySelector('input').click()"><i class="fa-solid fa-id-card mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Aadhaar Front</div><div class="text-soft upload-status" style="font-size:.68rem;">Tap to upload</div><input type="file" class="d-none" accept="image/*,.pdf" data-doc="aadhaar_front" onchange="onDocChosen(this)"></div>
             </div>
             <div class="col-6 col-md-3">
-              <div class="upload-box"><i class="fa-solid fa-id-card mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Aadhaar Back</div><div class="text-soft" style="font-size:.68rem;">Tap to upload</div></div>
+              <div class="upload-box" onclick="this.querySelector('input').click()"><i class="fa-solid fa-id-card mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Aadhaar Back</div><div class="text-soft upload-status" style="font-size:.68rem;">Tap to upload</div><input type="file" class="d-none" accept="image/*,.pdf" data-doc="aadhaar_back" onchange="onDocChosen(this)"></div>
             </div>
             <div class="col-6 col-md-3">
-              <div class="upload-box"><i class="fa-solid fa-camera mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Applicant Photo</div><div class="text-soft" style="font-size:.68rem;">Tap to upload</div></div>
+              <div class="upload-box" onclick="this.querySelector('input').click()"><i class="fa-solid fa-camera mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Applicant Photo</div><div class="text-soft upload-status" style="font-size:.68rem;">Tap to upload</div><input type="file" class="d-none" accept="image/*" data-doc="photo" onchange="onDocChosen(this)"></div>
             </div>
             <div class="col-6 col-md-3">
-              <div class="upload-box"><i class="fa-solid fa-signature mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Signature</div><div class="text-soft" style="font-size:.68rem;">Tap to upload</div></div>
+              <div class="upload-box" onclick="this.querySelector('input').click()"><i class="fa-solid fa-signature mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Signature</div><div class="text-soft upload-status" style="font-size:.68rem;">Tap to upload</div><input type="file" class="d-none" accept="image/*" data-doc="signature" onchange="onDocChosen(this)"></div>
             </div>
           </div>
         </div>
@@ -1154,16 +1154,16 @@ h1,h2,h3,h4,h5,h6,.font-display{font-family:'Poppins',sans-serif;}
           </div>
           <div class="row g-3">
             <div class="col-6 col-md-3">
-              <div class="upload-box"><i class="fa-solid fa-id-card mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Identity Proof</div><div class="text-soft" style="font-size:.68rem;">Tap to upload</div></div>
+              <div class="upload-box" onclick="this.querySelector('input').click()"><i class="fa-solid fa-id-card mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Identity Proof</div><div class="text-soft upload-status" style="font-size:.68rem;">Tap to upload</div><input type="file" class="d-none" accept="image/*,.pdf" data-doc="identity_proof" onchange="onDocChosen(this)"></div>
             </div>
             <div class="col-6 col-md-3">
-              <div class="upload-box"><i class="fa-solid fa-house mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Address Proof</div><div class="text-soft" style="font-size:.68rem;">Tap to upload</div></div>
+              <div class="upload-box" onclick="this.querySelector('input').click()"><i class="fa-solid fa-house mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Address Proof</div><div class="text-soft upload-status" style="font-size:.68rem;">Tap to upload</div><input type="file" class="d-none" accept="image/*,.pdf" data-doc="address_proof" onchange="onDocChosen(this)"></div>
             </div>
             <div class="col-6 col-md-3">
-              <div class="upload-box"><i class="fa-solid fa-camera mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Applicant Photograph</div><div class="text-soft" style="font-size:.68rem;">Tap to upload</div></div>
+              <div class="upload-box" onclick="this.querySelector('input').click()"><i class="fa-solid fa-camera mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Applicant Photograph</div><div class="text-soft upload-status" style="font-size:.68rem;">Tap to upload</div><input type="file" class="d-none" accept="image/*" data-doc="photo" onchange="onDocChosen(this)"></div>
             </div>
             <div class="col-6 col-md-3">
-              <div class="upload-box"><i class="fa-solid fa-signature mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Signature Upload</div><div class="text-soft" style="font-size:.68rem;">Tap to upload</div></div>
+              <div class="upload-box" onclick="this.querySelector('input').click()"><i class="fa-solid fa-signature mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Signature Upload</div><div class="text-soft upload-status" style="font-size:.68rem;">Tap to upload</div><input type="file" class="d-none" accept="image/*" data-doc="signature" onchange="onDocChosen(this)"></div>
             </div>
           </div>
         </div>
