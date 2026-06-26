@@ -1460,10 +1460,48 @@ h1,h2,h3,h4,h5,h6,.font-display{font-family:'Poppins',sans-serif;}
       </div>
     </div>
 
+    <!-- ================= SETTINGS VIEW (Admin only) ================= -->
+    <div class="app-view" id="view-settings">
+      <div class="row g-3">
+        <div class="col-lg-6">
+          <div class="card-pane p-3">
+            <div class="section-title"><i class="fa-solid fa-envelope me-2"></i>SMTP / Email Settings</div>
+            <p class="text-soft" style="font-size:.8rem;">Used to send email OTP during registration and status notifications.</p>
+            <form onsubmit="saveSmtpSettings(event)">
+              <div class="mb-2"><label class="form-label">SMTP Host</label><input class="form-control" id="smtpHost" placeholder="smtp.hostinger.com"></div>
+              <div class="row g-2">
+                <div class="col-6 mb-2"><label class="form-label">Port</label><input type="number" class="form-control" id="smtpPort" placeholder="465"></div>
+                <div class="col-6 mb-2"><label class="form-label">From Email</label><input class="form-control" id="smtpFrom" placeholder="noreply@graminpanseva.in"></div>
+              </div>
+              <div class="mb-2"><label class="form-label">Username</label><input class="form-control" id="smtpUser" placeholder="SMTP username / email"></div>
+              <div class="mb-3"><label class="form-label">Password</label><input type="password" class="form-control" id="smtpPass" placeholder="SMTP password"></div>
+              <button type="submit" class="btn btn-navy btn-touch w-100" data-testid="save-smtp-btn"><i class="fa-solid fa-floppy-disk me-1"></i> Save SMTP Settings</button>
+            </form>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="card-pane p-3">
+            <div class="section-title"><i class="fa-solid fa-server me-2"></i>FTP / Document Storage</div>
+            <p class="text-soft" style="font-size:.8rem;">Used to store uploaded Aadhaar, photo, signature and receipt files.</p>
+            <form onsubmit="saveFtpSettings(event)">
+              <div class="mb-2"><label class="form-label">FTP Host</label><input class="form-control" id="ftpHost" placeholder="ftp.yourhost.com"></div>
+              <div class="row g-2">
+                <div class="col-6 mb-2"><label class="form-label">Port</label><input type="number" class="form-control" id="ftpPort" placeholder="21"></div>
+                <div class="col-6 mb-2"><label class="form-label">Base Path</label><input class="form-control" id="ftpBase" placeholder="/pan_docs"></div>
+              </div>
+              <div class="mb-2"><label class="form-label">Username</label><input class="form-control" id="ftpUser" placeholder="FTP username"></div>
+              <div class="mb-3"><label class="form-label">Password</label><input type="password" class="form-control" id="ftpPass" placeholder="FTP password"></div>
+              <button type="submit" class="btn btn-navy btn-touch w-100" data-testid="save-ftp-btn"><i class="fa-solid fa-floppy-disk me-1"></i> Save FTP Settings</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ================= SUPPORT CENTER VIEW ================= -->
     <div class="app-view" id="view-support">
       <div class="row g-3">
-        <div class="col-lg-5">
+        <div class="col-lg-5" id="ticketCreateCol">
           <div class="card-pane p-3">
             <div class="section-title">Create New Ticket</div>
             <form onsubmit="handleTicketSubmit(event)">
@@ -1487,7 +1525,7 @@ h1,h2,h3,h4,h5,h6,.font-display{font-family:'Poppins',sans-serif;}
             </form>
           </div>
         </div>
-        <div class="col-lg-7">
+        <div class="col-lg-7" id="ticketListCol">
           <div class="card-pane p-3">
             <div class="section-title">My Tickets</div>
             <div id="ticketListHost"></div>
