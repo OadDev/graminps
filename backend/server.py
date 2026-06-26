@@ -457,6 +457,10 @@ async def wallet_transactions(filter: Optional[str] = None, user: dict = Depends
 
 @api.post("/wallet/recharge")
 async def submit_recharge(body: RechargeIn, user: dict = Depends(get_current_user)):
+    if body.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than zero")
+    if not body.utr.strip():
+        raise HTTPException(status_code=400, detail="UTR number is required")
     doc = {
         "id": str(uuid.uuid4()), "user_id": user["id"], "submitted_by_name": user["name"],
         "user_code": user["user_code"], "date": today_str(), "amount": float(body.amount),
