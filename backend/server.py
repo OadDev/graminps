@@ -513,6 +513,8 @@ async def list_tickets(user: dict = Depends(get_current_user)):
 
 @api.post("/tickets")
 async def create_ticket(body: TicketCreateIn, user: dict = Depends(get_current_user)):
+    if user["role"] == "superadmin":
+        raise HTTPException(status_code=403, detail="Admins manage tickets and cannot raise them")
     tid = f"TK-{await next_seq('ticket')}"
     doc = {
         "id": str(uuid.uuid4()), "ticket_id": tid, "user_id": user["id"], "subject": body.subject,

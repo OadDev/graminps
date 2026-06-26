@@ -80,7 +80,8 @@ function getNavConfig(role){
   ]};
   const rateSetup = role==='superadmin' ? {section:null, items:[
     {id:'registrations', icon:'fa-user-check', label:'Registration Approvals'},
-    {id:'rate-setup', icon:'fa-tags', label:'Rate Setup'}
+    {id:'rate-setup', icon:'fa-tags', label:'Rate Setup'},
+    {id:'settings', icon:'fa-gear', label:'Settings'}
   ]} : null;
   const tail = [
     {section:null, items:[{id:'support', icon:'fa-headset', label:'Support Center'}, {id:'certificates', icon:'fa-award', label:'Certificates'}]},
@@ -132,6 +133,7 @@ const VIEW_TITLES = {
   'pan-status':['PAN Status','Track all PAN applications'], 'wallet-recharge':['Recharge Request','Add funds to your wallet'],
   'wallet-recharge-admin':['Recharge Approvals','Verify UTR and amount before accepting'], 'wallet-history':['Wallet History','All wallet transactions'],
   'rate-setup':['Rate Setup','Configure service charges'], registrations:['Registration Approvals','Review and approve new account registrations'],
+  settings:['Settings','SMTP, FTP and system configuration'],
   'support':['Support Center','Raise and track tickets'], 'certificates':['Certificates','Your achievement certificates'],
   'profile':['Profile','Manage your account details'], 'change-password':['Change Password','Keep your account secure'], notifications:['Notifications','Recent updates'],
 };
@@ -271,6 +273,7 @@ function renderViewData(viewId){
   if(viewId === 'notifications') renderNotificationsList();
   if(viewId === 'registrations') renderRegistrationsTable();
   if(viewId === 'rate-setup') renderRateSetup();
+  if(viewId === 'settings') renderSettingsForms();
   if(viewId === 'certificates') renderPersonalCertificate();
   if(viewId === 'profile') renderPersonalProfile();
 }
@@ -750,11 +753,51 @@ async function editRate(serviceName, current){
   }catch(err){ showToast('Error', err.message, 'danger'); }
 }
 
+/* ---------------- ADMIN SETTINGS (SMTP / FTP) ---------------- */
+function _v(id){ const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+async function renderSettingsForms(){
+  try{
+    const s = await api('/settings');
+    const smtp = s.smtp || {}; const ftp = s.ftp || {};
+    document.getElementById('smtpHost').value = smtp.host || '';
+    document.getElementById('smtpPort').value = smtp.port || '';
+    document.getElementById('smtpFrom').value = smtp.from_email || '';
+    document.getElementById('smtpUser').value = smtp.username || '';
+    document.getElementById('smtpPass').value = smtp.password || '';
+    document.getElementById('ftpHost').value = ftp.host || '';
+    document.getElementById('ftpPort').value = ftp.port || '';
+    document.getElementById('ftpBase').value = ftp.base_path || '';
+    document.getElementById('ftpUser').value = ftp.username || '';
+    document.getElementById('ftpPass').value = ftp.password || '';
+  }catch(err){ showToast('Error', err.message, 'danger'); }
+}
+async function saveSmtpSettings(e){
+  e.preventDefault();
+  const smtp = { host:_v('smtpHost'), port:parseInt(document.getElementById('smtpPort').value)||0, from_email:_v('smtpFrom'), username:_v('smtpUser'), password:_v('smtpPass') };
+  try{ await api('/settings', {method:'PUT', body:{smtp}}); showToast('Settings Saved', 'SMTP / email settings updated.', 'success'); }
+  catch(err){ showToast('Error', err.message, 'danger'); }
+}
+async function saveFtpSettings(e){
+  e.preventDefault();
+  const ftp = { host:_v('ftpHost'), port:parseInt(document.getElementById('ftpPort').value)||0, base_path:_v('ftpBase'), username:_v('ftpUser'), password:_v('ftpPass') };
+  try{ await api('/settings', {method:'PUT', body:{ftp}}); showToast('Settings Saved', 'FTP / document storage settings updated.', 'success'); }
+  catch(err){ showToast('Error', err.message, 'danger'); }
+}
+
 /* ---------------- SUPPORT TICKETS ---------------- */
 let ticketList = [];
 async function renderTicketList(){
   const host = document.getElementById('ticketListHost');
   if(!host) return;
+  const isAdmin = APP.role === 'superadmin';
+  const createCol = document.getElementById('ticketCreateCol');
+  const listCol = document.getElementById('ticketListCol');
+  if(createCol && listCol){
+    createCol.style.display = isAdmin ? 'none' : 'block';
+    listCol.className = isAdmin ? 'col-12' : 'col-lg-7';
+  }
+  const titleEl = document.querySelector('#ticketListCol .section-title');
+  if(titleEl) titleEl.textContent = isAdmin ? 'All Support Tickets' : 'My Tickets';
   try{ ticketList = await api('/tickets'); }catch(err){ host.innerHTML=''; return; }
   host.innerHTML = ticketList.length ? ticketList.map(t => `
     <div class="table-card-mobile" style="cursor:pointer;" onclick="openTicketChat('${t.id}')">
