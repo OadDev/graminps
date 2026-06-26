@@ -2140,8 +2140,7 @@ async function sendEmailOtp(){
     const r = await api('/auth/register/send-otp', {method:'POST', body:{email}});
     regEmailForOtp = email;
     document.getElementById('emailOtpBox').style.display = 'block';
-    showToast('OTP Sent', 'A 6-digit code was sent to your email.', 'info');
-    if(r.dev_otp) console.log('[DEV OTP]', r.dev_otp);
+    showToast('OTP Sent', r.emailed ? 'A 6-digit code was sent to your email.' : 'Enter the code shown to complete verification.', 'info');
   }catch(err){ showToast('Error', err.message, 'danger'); }
 }
 async function handleRegisterSubmit(e){
