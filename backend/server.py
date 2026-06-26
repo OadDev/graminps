@@ -355,10 +355,11 @@ async def get_cities(state: str = Query(...)):
 
 
 @api.get("/ao-codes")
-async def get_ao_codes(city: str = Query(...)):
-    rows = await db.ao_codes.find({"city": city}, {"_id": 0, "id": 0}).to_list(1000)
-    if not rows:
-        rows = await db.ao_codes.find({"city": "default"}, {"_id": 0, "id": 0}).to_list(1000)
+async def get_ao_codes(city: str = Query(...), state: Optional[str] = None):
+    q = {"city": city}
+    if state:
+        q["state"] = state
+    rows = await db.ao_codes.find(q, {"_id": 0, "id": 0}).to_list(2000)
     return rows
 
 

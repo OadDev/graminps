@@ -1,58 +1,14 @@
 import os
+import csv
 import uuid
+from pathlib import Path
 from datetime import datetime, timezone
 
 from database import db
 from security import hash_password
 
-STATES = [
-    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Delhi", "Goa", "Gujarat",
-    "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra",
-    "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
-    "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
-]
-
-CITIES = {
-    "Assam": ["Barpeta", "Bongaigaon", "Dhubri", "Dibrugarh", "Digboi", "Duliajan", "Goalpara", "Golaghat",
-              "Guwahati", "Jorhat", "Karimganj", "Mangaldoi", "Morigaon", "Nagaon", "Nalbari",
-              "North Lakhimpur", "Silchar", "Sivasagar", "Tezpur", "Tinsukia"],
-    "Bihar": ["Patna", "Gaya", "Bhagalpur", "Muzaffarpur", "Darbhanga"],
-    "Delhi": ["New Delhi", "South Delhi", "North Delhi", "East Delhi", "West Delhi"],
-    "Karnataka": ["Bengaluru", "Mysuru", "Mangaluru", "Hubballi", "Belagavi"],
-    "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Nashik", "Aurangabad"],
-    "West Bengal": ["Kolkata", "Howrah", "Siliguri", "Durgapur", "Asansol"],
-}
-
-AO_CODES = {
-    "Guwahati": [
-        {"ward": "ITO IT&TP KOLKATA AT GUWAHATI", "area_code": "DLC", "ao_type": "W", "range_code": "603", "ao_number": "1", "category": "Both"},
-        {"ward": "WARD 2(3), EXEMP, GUWAHATI", "area_code": "DLC", "ao_type": "WX", "range_code": "259", "ao_number": "3", "category": "Both"},
-        {"ward": "DCIT/ACIT CIR-1, GUWAHATI", "area_code": "SHL", "ao_type": "C", "range_code": "1", "ao_number": "1", "category": "Individual"},
-        {"ward": "ACIT CIRCLE-2, GUWAHATI", "area_code": "SHL", "ao_type": "C", "range_code": "2", "ao_number": "1", "category": "Individual"},
-        {"ward": "ITO WARD -1(1), GUWAHATI", "area_code": "SHL", "ao_type": "W", "range_code": "1", "ao_number": "1", "category": "Individual"},
-        {"ward": "ITO WARD -1(2), GUWAHATI", "area_code": "SHL", "ao_type": "W", "range_code": "1", "ao_number": "2", "category": "Individual"},
-        {"ward": "ITO WARD -2(1), GUWAHATI", "area_code": "SHL", "ao_type": "W", "range_code": "2", "ao_number": "1", "category": "Individual"},
-    ],
-    "Jorhat": [
-        {"ward": "ITO WARD -1, JORHAT", "area_code": "SHL", "ao_type": "W", "range_code": "7", "ao_number": "1", "category": "Individual"},
-    ],
-    "Silchar": [
-        {"ward": "DCIT/ACIT CIRCLE SILCHAR", "area_code": "SHL", "ao_type": "C", "range_code": "16", "ao_number": "1", "category": "Individual"},
-        {"ward": "ITO WARD -1, SILCHAR", "area_code": "SHL", "ao_type": "W", "range_code": "16", "ao_number": "1", "category": "Individual"},
-    ],
-    "Dibrugarh": [
-        {"ward": "ACIT/DCIT CIRCLE 1 DIBRUGARH", "area_code": "SHL", "ao_type": "C", "range_code": "25", "ao_number": "1", "category": "Individual"},
-        {"ward": "ITO WARD 1(1), DIBRUGARH", "area_code": "SHL", "ao_type": "W", "range_code": "25", "ao_number": "1", "category": "Individual"},
-        {"ward": "ITO WARD 1(2) DIBRUGARH", "area_code": "SHL", "ao_type": "W", "range_code": "25", "ao_number": "2", "category": "Individual"},
-    ],
-    "default": [
-        {"ward": "DCIT/ACIT CIRCLE EXEMPTION, NAGPUR", "area_code": "DLC", "ao_type": "CA", "range_code": "221", "ao_number": "1", "category": "Both"},
-        {"ward": "ITO WARD-1, EXEMPTION, NAGPUR", "area_code": "DLC", "ao_type": "WX", "range_code": "221", "ao_number": "1", "category": "Both"},
-        {"ward": "ITO WARD-2, EXEMPTION, NAGPUR", "area_code": "DLC", "ao_type": "WX", "range_code": "221", "ao_number": "2", "category": "Both"},
-        {"ward": "ITO WARD-3, EXEMPTION, NAGPUR", "area_code": "DLC", "ao_type": "WX", "range_code": "221", "ao_number": "3", "category": "Both"},
-        {"ward": "ITO WARD-4, EXEMPTION, NAGPUR", "area_code": "DLC", "ao_type": "WX", "range_code": "221", "ao_number": "4", "category": "Both"},
-    ],
-}
+ROOT_DIR = Path(__file__).parent
+AO_CSV_PATH = ROOT_DIR / "ao_codes.csv"
 
 
 def now_iso():
@@ -61,6 +17,39 @@ def now_iso():
 
 def parse_inr(s):
     return float(s.replace("\u20b9", "").replace(",", "").strip() or 0)
+
+
+def load_ao_csv():
+    """Load the real AO code dataset from ao_codes.csv.
+    Returns (states_sorted, cities_map, rows) where rows match the frontend ward shape."""
+    states = set()
+    cities = {}
+    rows = []
+    if not AO_CSV_PATH.exists():
+        return [], {}, []
+    with open(AO_CSV_PATH, newline="", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        for r in reader:
+            state = (r.get("state") or "").strip()
+            city = (r.get("city") or "").strip()
+            if not state or not city:
+                continue
+            states.add(state)
+            cities.setdefault(state, set()).add(city)
+            rows.append({
+                "id": str(uuid.uuid4()),
+                "state": state,
+                "city": city,
+                "ward": (r.get("ao_description") or "").strip(),
+                "area_code": (r.get("area_code") or "").strip(),
+                "ao_type": (r.get("ao_type") or "").strip(),
+                "range_code": (r.get("range_code") or "").strip(),
+                "ao_number": (r.get("ao_number") or "").strip(),
+                "category": (r.get("category") or "").strip(),
+            })
+    states_sorted = sorted(states)
+    cities_map = {s: sorted(list(c)) for s, c in cities.items()}
+    return states_sorted, cities_map, rows
 
 
 async def seed():
@@ -75,17 +64,20 @@ async def seed():
             "updated_at": now_iso(),
         })
 
-    # ---------- AO codes / meta ----------
-    if await db.ao_codes.count_documents({}) == 0:
-        rows = []
-        for city, wards in AO_CODES.items():
-            for w in wards:
-                rows.append({"id": str(uuid.uuid4()), "city": city, **w})
-        await db.ao_codes.insert_one({"id": "default", "city": "default", "wards": AO_CODES["default"]}) if False else None
-        await db.ao_codes.insert_many(rows)
-
-    if not await db.meta.find_one({"id": "geo"}):
-        await db.meta.insert_one({"id": "geo", "states": STATES, "cities": CITIES})
+    # ---------- AO codes / geo meta (from real ao_codes.csv) ----------
+    if await db.ao_codes.count_documents({}) == 0 or not await db.meta.find_one({"id": "geo"}):
+        states_sorted, cities_map, rows = load_ao_csv()
+        if rows:
+            await db.ao_codes.delete_many({})
+            # insert in chunks
+            for i in range(0, len(rows), 500):
+                await db.ao_codes.insert_many(rows[i:i + 500])
+            await db.ao_codes.create_index([("state", 1), ("city", 1)])
+            await db.meta.update_one(
+                {"id": "geo"},
+                {"$set": {"id": "geo", "states": states_sorted, "cities": cities_map}},
+                upsert=True,
+            )
 
     # ---------- Users ----------
     if await db.users.count_documents({}) > 0:
@@ -122,8 +114,7 @@ async def seed():
     ]
     sds = {}
     for code, name, mob, st, wal in sd_rows:
-        u = mkuser(code, name, mob, st, wal, "superdistributor", admin_id, [admin_id])
-        sds[code] = u
+        sds[code] = mkuser(code, name, mob, st, wal, "superdistributor", admin_id, [admin_id])
     await db.users.insert_many(list(sds.values()))
     sd1001 = sds["SD1001"]["id"]
 
@@ -137,8 +128,7 @@ async def seed():
     ]
     dists = {}
     for code, name, mob, st, wal in dist_rows:
-        u = mkuser(code, name, mob, st, wal, "distributor", sd1001, [admin_id, sd1001])
-        dists[code] = u
+        dists[code] = mkuser(code, name, mob, st, wal, "distributor", sd1001, [admin_id, sd1001])
     await db.users.insert_many(list(dists.values()))
     dt2031 = dists["DT2031"]["id"]
 
@@ -153,8 +143,7 @@ async def seed():
     ]
     rets = {}
     for code, name, mob, st, wal in ret_rows:
-        u = mkuser(code, name, mob, st, wal, "retailer", dt2031, [admin_id, sd1001, dt2031])
-        rets[code] = u
+        rets[code] = mkuser(code, name, mob, st, wal, "retailer", dt2031, [admin_id, sd1001, dt2031])
     await db.users.insert_many(list(rets.values()))
     bikash = rets["RT10234"]["id"]
 

@@ -499,12 +499,16 @@ async function onAoStateChange(){
   }catch(e){}
 }
 async function onAoCityChange(){
+  const state = document.getElementById('aoStateSelect').value;
   const city = document.getElementById('aoCitySelect').value;
   clearAoFields();
   if(!city){ document.getElementById('aoWardSection').style.display = 'none'; return; }
   document.getElementById('aoWardSection').style.display = 'block';
   document.getElementById('aoWardTableBody').innerHTML = `<tr><td colspan="7" class="text-center text-soft py-3" style="font-size:.82rem;"><i class="fa-solid fa-circle-notch fa-spin me-2"></i>Loading AO codes for ${city}...</td></tr>`;
-  try{ const wards = await api('/ao-codes?city='+encodeURIComponent(city)); renderAoWardTable(wards); }
+  try{ const wards = await api('/ao-codes?city='+encodeURIComponent(city)+'&state='+encodeURIComponent(state));
+    if(!wards.length){ document.getElementById('aoWardTableBody').innerHTML = `<tr><td colspan="7" class="text-center text-soft py-3" style="font-size:.82rem;">No AO codes found for ${city}.</td></tr>`; return; }
+    renderAoWardTable(wards);
+  }
   catch(e){ document.getElementById('aoWardTableBody').innerHTML = `<tr><td colspan="7" class="text-center text-soft py-3">Failed to load AO codes.</td></tr>`; }
 }
 function renderAoWardTable(wards){
