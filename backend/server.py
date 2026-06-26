@@ -2,6 +2,12 @@ import os
 import uuid
 import random
 import logging
+import asyncio
+import smtplib
+import ssl
+import ftplib
+import io
+from email.message import EmailMessage
 from datetime import datetime, timezone
 from typing import Optional, List
 
@@ -46,6 +52,77 @@ def fmt_inr(v):
 
 def today_str():
     return datetime.now(timezone.utc).strftime("%d %b %Y")
+
+
+async def get_global_settings() -> dict:
+    return await db.settings.find_one({"id": "global"}, {"_id": 0}) or {}
+
+
+def smtp_is_configured(smtp: dict) -> bool:
+    return bool(smtp and smtp.get("host") and smtp.get("username") and smtp.get("password"))
+
+
+def ftp_is_configured(ftp: dict) -> bool:
+    return bool(ftp and ftp.get("host") and ftp.get("username") and ftp.get("password"))
+
+
+def _send_email_blocking(smtp: dict, to_email: str, subject: str, html_body: str, text_body: str):
+    host = smtp["host"]
+    port = int(smtp.get("port") or 465)
+    user = smtp["username"]
+    pwd = smtp["password"]
+    from_email = smtp.get("from_email") or user
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = from_email
+    msg["To"] = to_email
+    msg.set_content(text_body)
+    msg.add_alternative(html_body, subtype="html")
+    context = ssl.create_default_context()
+    if port == 465:
+        with smtplib.SMTP_SSL(host, port, context=context, timeout=20) as s:
+            s.login(user, pwd)
+            s.send_message(msg)
+    else:
+        with smtplib.SMTP(host, port, timeout=20) as s:
+            s.ehlo()
+            s.starttls(context=context)
+            s.login(user, pwd)
+            s.send_message(msg)
+
+
+async def send_email(to_email: str, subject: str, html_body: str, text_body: str) -> bool:
+    settings = await get_global_settings()
+    smtp = settings.get("smtp", {})
+    if not smtp_is_configured(smtp):
+        return False
+    try:
+        await asyncio.to_thread(_send_email_blocking, smtp, to_email, subject, html_body, text_body)
+        return True
+    except Exception as e:
+        logger.error(f"SMTP send failed: {e}")
+        return False
+
+
+def _ftp_upload_blocking(ftp_cfg: dict, fname: str, data: bytes) -> str:
+    host = ftp_cfg["host"]
+    port = int(ftp_cfg.get("port") or 21)
+    user = ftp_cfg["username"]
+    pwd = ftp_cfg["password"]
+    base = (ftp_cfg.get("base_path") or "").strip()
+    ftp = ftplib.FTP()
+    ftp.connect(host, port, timeout=25)
+    ftp.login(user, pwd)
+    if base:
+        for part in [p for p in base.strip("/").split("/") if p]:
+            try:
+                ftp.cwd(part)
+            except ftplib.error_perm:
+                ftp.mkd(part)
+                ftp.cwd(part)
+    ftp.storbinary(f"STOR {fname}", io.BytesIO(data))
+    ftp.quit()
+    return f"{base.rstrip('/')}/{fname}" if base else f"/{fname}"
 
 
 async def next_seq(name: str) -> int:
@@ -192,9 +269,22 @@ async def send_otp(body: SendOtpIn):
         {"$set": {"email": body.email.lower(), "code": code, "created_at": now_iso()}},
         upsert=True,
     )
-    # SMTP is configurable in admin settings but MOCKED for now: OTP is logged, not emailed.
-    logger.info(f"[MOCK OTP] Email OTP for {body.email}: {code}")
-    return {"sent": True, "message": "OTP sent to email (mocked).", "dev_otp": code}
+    subject = "Your Gramin PAN Seva verification code"
+    html = (f"<div style='font-family:Arial,sans-serif'><h2 style='color:#163C5A'>Gramin PAN Seva</h2>"
+            f"<p>Your email verification code is:</p>"
+            f"<p style='font-size:28px;font-weight:bold;letter-spacing:4px;color:#163C5A'>{code}</p>"
+            f"<p>This code is valid for 10 minutes. If you did not request this, please ignore.</p></div>")
+    text = f"Your Gramin PAN Seva verification code is {code}. Valid for 10 minutes."
+    emailed = await send_email(body.email, subject, html, text)
+    logger.info(f"[OTP] {body.email}: {code} (emailed={emailed})")
+    resp = {
+        "sent": True,
+        "emailed": emailed,
+        "message": "OTP sent to your email." if emailed else "OTP generated. Configure SMTP in Settings to email it.",
+    }
+    if not emailed:
+        resp["dev_otp"] = code  # MOCK fallback when SMTP is not configured
+    return resp
 
 
 @api.post("/auth/register")
@@ -646,10 +736,18 @@ async def upload_file(file: UploadFile = File(...), user: dict = Depends(get_cur
     if len(data) > 5 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File too large (max 5MB)")
     fname = f"{uuid.uuid4().hex}{ext}"
+    settings = await get_global_settings()
+    ftp_cfg = settings.get("ftp", {})
+    if ftp_is_configured(ftp_cfg):
+        try:
+            remote_path = await asyncio.to_thread(_ftp_upload_blocking, ftp_cfg, fname, data)
+            return {"filename": file.filename, "path": remote_path, "url": remote_path, "storage": "ftp"}
+        except Exception as e:
+            logger.error(f"FTP upload failed, using local storage: {e}")
     with open(os.path.join(UPLOAD_DIR, fname), "wb") as f:
         f.write(data)
-    # NOTE: FTP storage is configurable in admin settings but MOCKED — files stored on local disk.
-    return {"filename": file.filename, "path": f"/api/uploads/{fname}", "url": f"/api/uploads/{fname}"}
+    # When FTP is not configured, files are stored on local disk and served at /api/uploads.
+    return {"filename": file.filename, "path": f"/api/uploads/{fname}", "url": f"/api/uploads/{fname}", "storage": "local"}
 
 
 @api.get("/")

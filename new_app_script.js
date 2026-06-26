@@ -29,6 +29,32 @@ async function apiUpload(file){
   return res.json();
 }
 
+/* ---------------- DOCUMENT UPLOADS ---------------- */
+let uploadedDocs = {};
+let regPhotoPath = '';
+async function onDocChosen(input){
+  if(!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const key = input.dataset.doc;
+  const box = input.closest('.upload-box');
+  const status = box ? box.querySelector('.upload-status') : null;
+  if(status) status.textContent = 'Uploading...';
+  try{
+    const up = await apiUpload(file);
+    uploadedDocs[key] = up.path;
+    if(status) status.textContent = file.name.length > 16 ? file.name.slice(0,14)+'\u2026' : file.name;
+    if(box) box.style.borderColor = 'var(--success)';
+    showToast('Uploaded', file.name + ' attached.', 'success');
+  }catch(err){ if(status) status.textContent = 'Upload failed'; showToast('Upload Failed', err.message, 'danger'); }
+}
+function onRegPhotoChosen(input){
+  if(!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  regPhotoPath = file.name;
+  const label = document.getElementById('profPhotoLabel');
+  if(label) label.textContent = file.name;
+}
+
 /* ---------------- UI HELPERS ---------------- */
 function statusBadgeClass(status){
   const map = { Active:'bd-active', Blocked:'bd-blocked', Pending:'bd-pending', Approved:'bd-approved',
@@ -234,8 +260,7 @@ async function sendEmailOtp(){
     const r = await api('/auth/register/send-otp', {method:'POST', body:{email}});
     regEmailForOtp = email;
     document.getElementById('emailOtpBox').style.display = 'block';
-    showToast('OTP Sent', 'A 6-digit code was sent to your email.', 'info');
-    if(r.dev_otp) console.log('[DEV OTP]', r.dev_otp);
+    showToast('OTP Sent', r.emailed ? 'A 6-digit code was sent to your email.' : 'Enter the code shown to complete verification.', 'info');
   }catch(err){ showToast('Error', err.message, 'danger'); }
 }
 async function handleRegisterSubmit(e){
@@ -248,6 +273,7 @@ async function handleRegisterSubmit(e){
     aadhaar: s1[0].value, pan: s1[1].value, mobile: s1[2].value, email: s1[3].value.trim(),
     otp: s1[4] ? s1[4].value : '', password: s2inputs[0].value,
     shop_name: s2inputs[2] ? s2inputs[2].value : '', address: s2text ? s2text.value : '',
+    photo_path: regPhotoPath,
   };
   if(s2inputs[0].value !== s2inputs[1].value){ showToast('Password Mismatch','Passwords do not match.','danger'); return; }
   try{
@@ -264,8 +290,8 @@ function renderViewData(viewId){
   if(viewId === 'users-sd') loadUserTable('users-sd-table','superdistributor');
   if(viewId === 'users-dist') loadUserTable('users-dist-table','distributor');
   if(viewId === 'users-retailer') loadUserTable('users-retailer-table','retailer');
-  if(viewId === 'pan-new') initNewPanForm();
-  if(['pan-csf','pan-hold-new','pan-hold-csf'].includes(viewId)) initPanForms();
+  if(viewId === 'pan-new'){ uploadedDocs = {}; initNewPanForm(); }
+  if(['pan-csf','pan-hold-new','pan-hold-csf'].includes(viewId)){ uploadedDocs = {}; initPanForms(); }
   if(viewId === 'pan-status') renderPanStatusTable();
   if(viewId === 'wallet-history') renderWalletHistoryTable();
   if(viewId === 'wallet-recharge') renderRechargeTable();
@@ -459,7 +485,7 @@ function initPanForms(){
 }
 async function handlePanSubmit(e){
   e.preventDefault();
-  try{ const r = await api('/pan-applications', {method:'POST', body:{type:'CSF PAN', applicant_name:'CSF Applicant'}});
+  try{ const r = await api('/pan-applications', {method:'POST', body:{type:'CSF PAN', applicant_name:'CSF Applicant', form_data:{documents:uploadedDocs}}});
     showToast('Application Submitted', r.message, 'success'); goTo('pan-status');
   }catch(err){ showToast('Submission Failed', err.message, 'danger'); }
 }
@@ -567,6 +593,7 @@ async function handleNewPanSubmit(e){
     state: document.getElementById('aoStateSelect').value, city: document.getElementById('aoCitySelect').value,
     area_code: document.getElementById('aoAreaCode').value, ao_type: document.getElementById('aoTypeField').value,
     range_code: document.getElementById('aoRangeCode').value, ao_number: document.getElementById('aoNumberField').value,
+    form_data: { documents: uploadedDocs },
   };
   try{ const r = await api('/pan-applications', {method:'POST', body}); showToast('Application Submitted', r.message, 'success'); goTo('pan-status'); }
   catch(err){ showToast('Submission Failed', err.message, 'danger'); }

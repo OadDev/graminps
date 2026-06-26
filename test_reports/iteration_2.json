@@ -1,0 +1,49 @@
+{
+  "summary": "Re-tested both reported bugs after fixes. BUG 1 (Email OTP) — fully VERIFIED FIXED on backend (12/12 new bug-regression tests pass) and on frontend (end-to-end registration completed with reference id REG-2026-08847 shown on Pending screen, dev_otp captured via API and entered, multi-step form submitted). BUG 2 (File Upload) — fully VERIFIED FIXED on backend (POST /api/uploads: 401 unauth, 200 png with retailer token returning storage='local'+url+path, 400 for .csv/.txt). On frontend the 4 input[data-doc='aadhaar_front|aadhaar_back|photo|signature'] inputs are present in DOM with onDocChosen() wiring, hidden inputs (d-none) belong to step 6 (Documents) of the 7-step New PAN wizard. Also re-verified PAN-with-docs submit debits wallet, settings partial-update preserves smtp, and tickets role gating (admin 403, retailer 200). Full prior suite: 47/48 pass; the one failure is test-isolation (the PAN-with-docs test debited wallet, affecting recharge-approval test expectations) — not a real regression.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/register/send-otp", "issue": "OTP record has no TTL/expiry; consider expiring after 10 minutes (referenced in email body but not enforced)."},
+      {"endpoint": "GET /api/settings", "issue": "SMTP password is returned in plaintext to admin GET; consider masking on read."},
+      {"endpoint": "Wallet recharge", "issue": "From iter1: no validation amount > 0; still open."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "New PAN — Step 1 (Applicant)", "issues": ["Date of Birth uses the browser-native date picker (input type=date) instead of a calendar component; consider a styled date-picker for consistency."]},
+      {"screen": "Register (Step 1)", "issues": ["Email OTP input box (#emailOtpBox) appears below Send OTP but the same `[DEV OTP]` console log is helpful only in dev — make sure to remove the console.log of OTP before production."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_bugfixes.py",
+    "/app/backend/tests/test_backend_api.py",
+    "/app/test_reports/pytest/bugfixes.xml",
+    "/app/test_reports/pytest/full.xml"
+  ],
+  "action_items": [
+    "(Optional) Add TTL/expiry to OTP records (10 min) and rate-limit /auth/register/send-otp per email/IP.",
+    "(Optional) Remove `console.log('[DEV OTP]', code)` in sendEmailOtp() before production deploy (currently used by tests, but leaks OTPs to browser console).",
+    "(Optional) Mask smtp.password / ftp.password in GET /api/settings response (return e.g. '***') to avoid plaintext exposure.",
+    "(Optional) Replace browser-native date picker on New PAN DOB with a styled calendar component for design consistency.",
+    "Note: there is one isolation-related failure in test_backend_api.py::test_recharge_request_and_review when bugfixes test debits the wallet first; consider seeding a fresh wallet per test or using a TEST_-prefixed retailer."
+  ],
+  "critical_code_review_comments": [
+    "send_otp endpoint properly returns 200 + dev_otp fallback when send_email() fails or SMTP not configured — no 500 leak. Good.",
+    "/api/uploads correctly enforces auth (Depends(get_current_user)), extension whitelist {.jpg,.jpeg,.png,.pdf,.webp}, 5MB size cap, and falls back to local disk when FTP not configured. Returns {filename, path, url, storage}. Clean.",
+    "Settings PUT does partial merge — verified ftp save preserves smtp. Good.",
+    "onDocChosen() in index.html uploads to /api/uploads via FormData with Bearer token, updates .upload-status, and shows toast — wired correctly. Hidden inputs are inside the 7-step wizard's Documents section (step 6), which is why Playwright set_input_files times out on the inactive-step input (not a code bug; can be tested by advancing to step 6 first).",
+    "OTP is leaked to browser console via `console.log('[DEV OTP]', code)` in sendEmailOtp() — remove before prod."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_bugfixes.py (new — 12 tests covering OTP, uploads, PAN-with-docs, settings persistence, tickets)"
+  ],
+  "success_rate": {"backend": "100% (12/12 bugfix suite; 47/48 full suite, 1 test-isolation flake)", "frontend": "BUG1 100% verified; BUG2 backend 100% verified, frontend DOM wiring confirmed but full UI drive blocked by 7-step wizard requiring step navigation"},
+  "test_credentials": "AD-0001/Admin@123, RT10234/Password@123 (per /app/memory/test_credentials.md).",
+  "seed_data_creation": "Tests create TEST_-prefixed registrations, PAN apps, tickets via API; no manual seeding required.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Both reported bugs are fixed. New PAN form has 7 steps and document upload boxes live on step 6 — to UI-test uploads, click stepper labels in order or use page.evaluate to call internal regStep()/nav helper. For OTP UI test, scope all selectors to #authView-register (the same placeholders exist on New PAN page too). The /api/auth/register/send-otp endpoint returns dev_otp only when emailed=false (SMTP unconfigured/invalid); in this env SMTP is unconfigured so dev_otp is always returned. Console also prints `[DEV OTP] <code>` from sendEmailOtp() — remove before production. Backend regression file: /app/backend/tests/test_bugfixes.py.",
+  "rca of the issue": "BUG 1 (OTP): Prior code only returned dev_otp without attempting SMTP — main agent now sends via send_email() and only falls back to dev_otp on failure (verified). BUG 2 (Upload): Document boxes were static divs with no <input type=file>; main agent added hidden inputs with onchange=onDocChosen which POSTs to /api/uploads with bearer token and updates the .upload-status span. Backend POST /api/uploads validates auth, extension, size; local-disk fallback works (storage='local'). All verified via test_bugfixes.py."
+}
