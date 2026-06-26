@@ -1,0 +1,25 @@
+# Build context speed-ups and secret exclusion for the production image
+.git
+**/__pycache__
+**/*.pyc
+**/*.pyo
+*.log
+
+# Do NOT bake local dev env into the image (compose provides production env)
+backend/.env
+backend/uploads
+
+# Frontend build tooling is not needed (FastAPI serves frontend/public/index.html)
+frontend/node_modules
+frontend/build
+frontend/src
+
+# Repo build helpers / test artifacts
+frontend_source.html
+new_app_script.js
+landing_markup.html
+build_index.py
+test_reports
+tests
+deploy/.env
+deploy/certbot

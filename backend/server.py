@@ -7,6 +7,7 @@ from typing import Optional, List
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Query
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from starlette.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, EmailStr
 from pymongo import ReturnDocument
@@ -656,6 +657,23 @@ async def root():
 
 app.include_router(api)
 app.mount("/api/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+# ---------- Serve the static frontend (production / VPS) ----------
+# In the Emergent preview, "/" is routed to the React dev server, so this catch-all is dormant.
+# On a VPS, FastAPI serves the single-file Bootstrap frontend for all non-API routes (SPA fallback).
+FRONTEND_DIR = os.environ.get(
+    "FRONTEND_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "public")
+)
+
+
+@app.get("/{full_path:path}")
+async def serve_frontend(full_path: str):
+    if full_path.startswith("api"):
+        raise HTTPException(status_code=404, detail="Not found")
+    index = os.path.join(FRONTEND_DIR, "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
+    raise HTTPException(status_code=404, detail="Frontend not built")
 
 app.add_middleware(
     CORSMiddleware,

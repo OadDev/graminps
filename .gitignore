@@ -86,3 +86,10 @@ android-sdk/
 credentials.json
 *.key
 .credentials
+
+# --- Gramin PAN Seva deploy ---
+# Keep the env template in the repo (override the .env.* ignore above)
+!deploy/.env.example
+# Never commit SSL material or uploaded files
+deploy/certbot/
+backend/uploads/
