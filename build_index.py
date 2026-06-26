@@ -6,6 +6,8 @@ with open('/app/new_app_script.js', 'r') as f:
     new_js = f.read()
 with open('/app/landing_markup.html', 'r') as f:
     landing = f.read()
+with open('/app/dev_markup.html', 'r') as f:
+    dev = f.read()
 
 marker = "<script>\n/* ============================================================\n   GRAMIN PAN SEVA — APP STATE & ROUTING"
 idx = html.find(marker)
@@ -20,6 +22,9 @@ head = head.replace('id="loginPassword" value="\u2022\u2022\u2022\u2022\u2022\u2
 
 # Inject the marketing landing page right before the auth root
 head = head.replace('<div id="authRoot">', landing + '\n\n<div id="authRoot" style="display:none">', 1)
+
+# Inject the hidden developer console before the landing page
+head = head.replace('<div id="landingRoot">', dev + '\n\n<div id="landingRoot">', 1)
 
 assembled = head + "<script>\n" + new_js + "\n</script>\n</body>\n</html>\n"
 

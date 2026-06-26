@@ -79,21 +79,14 @@ async def seed():
                 upsert=True,
             )
 
-    # ---------- Admin credential sync (runs every startup; deployment-friendly) ----------
+    # ---------- Seed admin + demo data ONLY on a fresh database ----------
+    # (Admin credentials are managed at runtime via the Developer Console, so they are
+    #  created once here and never overwritten on restart.)
     seed_pw = os.environ.get("SEED_USER_PASSWORD", "Password@123")
     admin_pw = os.environ.get("ADMIN_PASSWORD", "Admin@123")
     admin_code = os.environ.get("ADMIN_USER_ID", "ADMIN")
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@graminpanseva.in")
 
-    existing_admin = await db.users.find_one({"role": "superadmin"})
-    if existing_admin:
-        await db.users.update_one(
-            {"id": existing_admin["id"]},
-            {"$set": {"user_code": admin_code, "email": admin_email,
-                      "password_hash": hash_password(admin_pw), "status": "Active"}},
-        )
-
-    # ---------- Demo data: only on a completely fresh database ----------
     if await db.users.count_documents({}) > 0:
         return
 

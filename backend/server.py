@@ -7,6 +7,7 @@ import smtplib
 import ssl
 import ftplib
 import io
+import hmac
 from email.message import EmailMessage
 from datetime import datetime, timezone
 from typing import Optional, List
@@ -19,7 +20,7 @@ from pydantic import BaseModel, Field, EmailStr
 from pymongo import ReturnDocument
 
 from database import db, client
-from security import hash_password, verify_password, create_access_token, get_current_user, require_roles
+from security import hash_password, verify_password, create_access_token, get_current_user, require_roles, create_dev_token, get_current_dev
 import seed_data
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -329,6 +330,56 @@ async def me(user: dict = Depends(get_current_user)):
 @api.post("/auth/logout")
 async def logout(user: dict = Depends(get_current_user)):
     return {"ok": True}
+
+
+# ============================ DEVELOPER CONSOLE ============================
+class DevLoginIn(BaseModel):
+    username: str
+    password: str
+
+
+class AdminCredsIn(BaseModel):
+    user_id: str
+    password: Optional[str] = None
+
+
+@api.post("/dev/login")
+async def dev_login(body: DevLoginIn):
+    dev_user = os.environ.get("DEV_USERNAME", "admin")
+    dev_pass = os.environ.get("DEV_PASSWORD", "Biki@1626")
+    ok_user = hmac.compare_digest(body.username.strip(), dev_user)
+    ok_pass = hmac.compare_digest(body.password, dev_pass)
+    if not (ok_user and ok_pass):
+        raise HTTPException(status_code=401, detail="Invalid developer credentials")
+    return {"token": create_dev_token()}
+
+
+@api.get("/dev/admin")
+async def dev_get_admin(dev: dict = Depends(get_current_dev)):
+    admin = await db.users.find_one({"role": "superadmin"}, {"_id": 0})
+    if not admin:
+        raise HTTPException(status_code=404, detail="Admin account not found")
+    return {"user_id": admin["user_code"], "email": admin.get("email"), "name": admin.get("name")}
+
+
+@api.post("/dev/admin")
+async def dev_set_admin(body: AdminCredsIn, dev: dict = Depends(get_current_dev)):
+    admin = await db.users.find_one({"role": "superadmin"})
+    if not admin:
+        raise HTTPException(status_code=404, detail="Admin account not found")
+    new_code = body.user_id.strip()
+    if not new_code:
+        raise HTTPException(status_code=400, detail="Admin Login ID is required")
+    clash = await db.users.find_one({"user_code": new_code, "id": {"$ne": admin["id"]}})
+    if clash:
+        raise HTTPException(status_code=400, detail="This Login ID is already in use by another account")
+    updates = {"user_code": new_code}
+    if body.password:
+        if len(body.password) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+        updates["password_hash"] = hash_password(body.password)
+    await db.users.update_one({"id": admin["id"]}, {"$set": updates})
+    return {"ok": True, "user_id": new_code, "message": "Admin credentials updated successfully."}
 
 
 # ============================ USERS ============================
