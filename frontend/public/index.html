@@ -1330,12 +1330,16 @@ h1,h2,h3,h4,h5,h6,.font-display{font-family:'Poppins',sans-serif;}
               <input class="form-control" id="npApplicantTypeDisplay" value="Major Applicant" readonly style="background:#FAFBFD;">
             </div>
             <div class="col-12"><label class="form-label">Name as per Aadhaar <span class="required-star">*</span></label><input class="form-control" placeholder="Full name exactly as on Aadhaar" required></div>
-            <div class="col-md-4"><label class="form-label">First Name <span class="required-star">*</span></label><input class="form-control" required></div>
-            <div class="col-md-4"><label class="form-label">Middle Name</label><input class="form-control"></div>
-            <div class="col-md-4"><label class="form-label">Last Name <span class="required-star">*</span></label><input class="form-control" required></div>
-            <div class="col-md-6"><label class="form-label">Date of Birth <span class="required-star">*</span></label><input type="date" class="form-control" required></div>
+            <div class="col-md-4"><label class="form-label">First Name <span class="required-star">*</span></label><input class="form-control" data-testid="np-first-name" required></div>
+            <div class="col-md-4"><label class="form-label">Middle Name</label><input class="form-control" data-testid="np-middle-name"></div>
+            <div class="col-md-4"><label class="form-label">Last Name <span class="required-star">*</span></label><input class="form-control" data-testid="np-last-name" required></div>
+            <div class="col-md-6"><label class="form-label">Name on Card <span class="required-star">*</span></label><input class="form-control" data-testid="np-name-on-card" placeholder="Name to be printed on PAN card" required></div>
+            <div class="col-md-3"><label class="form-label">PAN Card Type <span class="required-star">*</span></label>
+              <select class="form-select" data-testid="np-pan-card-type" required><option value="">Select</option><option selected>Normal</option><option>Minor</option></select>
+            </div>
+            <div class="col-md-3"><label class="form-label">Date of Birth <span class="required-star">*</span></label><input type="date" class="form-control" data-testid="np-dob" required></div>
             <div class="col-md-6"><label class="form-label">Gender <span class="required-star">*</span></label>
-              <select class="form-select" required><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select>
+              <select class="form-select" data-testid="np-gender" required><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select>
             </div>
           </div>
         </div>
@@ -1565,7 +1569,150 @@ h1,h2,h3,h4,h5,h6,.font-display{font-family:'Poppins',sans-serif;}
       </div>
     </div>
 
-    <div class="app-view" id="view-pan-csf"><div id="panFormHost-csf"></div></div>
+    <div class="app-view" id="view-pan-csf">
+      <form id="csfPanForm" onsubmit="handleCsfSubmit(event)">
+        <div class="row g-3 mb-2">
+          <div class="col-12"><div class="d-flex align-items-center gap-2 text-soft" style="font-size:.8rem;"><i class="fa-solid fa-circle-info"></i> Request for PAN Change or Correction — all fields marked <span class="required-star">*</span> are mandatory</div></div>
+        </div>
+
+        <!-- Applicant Details -->
+        <div class="card-pane p-3 mb-3">
+          <div class="section-title">Applicant Details</div>
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">PAN Number <span class="required-star">*</span></label><input class="form-control text-uppercase" data-testid="csf-pan-number" maxlength="10" placeholder="ABCDE1234F" required></div>
+            <div class="col-md-6"><label class="form-label">Name on Card <span class="required-star">*</span></label><input class="form-control" data-testid="csf-name-on-card" placeholder="Name to be printed on PAN card" required></div>
+            <div class="col-md-4"><label class="form-label">First Name <span class="required-star">*</span></label><input class="form-control" data-testid="csf-first-name" required></div>
+            <div class="col-md-4"><label class="form-label">Middle Name</label><input class="form-control" data-testid="csf-middle-name"></div>
+            <div class="col-md-4"><label class="form-label">Last Name <span class="required-star">*</span></label><input class="form-control" data-testid="csf-last-name" required></div>
+            <div class="col-md-6"><label class="form-label">Date of Birth <span class="required-star">*</span></label><input type="date" class="form-control" data-testid="csf-dob" required></div>
+            <div class="col-md-6"><label class="form-label">Gender <span class="required-star">*</span></label>
+              <select class="form-select" data-testid="csf-gender" required><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Parent Details -->
+        <div class="card-pane p-3 mb-3">
+          <div class="section-title">Parent Details</div>
+          <div class="row g-3">
+            <div class="col-md-4"><label class="form-label">Father's First Name</label><input class="form-control" data-testid="csf-father-first"></div>
+            <div class="col-md-4"><label class="form-label">Father's Middle Name</label><input class="form-control"></div>
+            <div class="col-md-4"><label class="form-label">Father's Last Name</label><input class="form-control"></div>
+            <div class="col-md-4"><label class="form-label">Mother's First Name</label><input class="form-control" data-testid="csf-mother-first"></div>
+            <div class="col-md-4"><label class="form-label">Mother's Middle Name</label><input class="form-control"></div>
+            <div class="col-md-4"><label class="form-label">Mother's Last Name</label><input class="form-control"></div>
+          </div>
+        </div>
+
+        <!-- Aadhaar & Contact -->
+        <div class="card-pane p-3 mb-3">
+          <div class="section-title">Aadhaar &amp; Contact Details</div>
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Name as per Aadhaar <span class="required-star">*</span></label><input class="form-control" data-testid="csf-name-aadhaar" required></div>
+            <div class="col-md-6"><label class="form-label">Aadhaar Number <span class="required-star">*</span></label><input class="form-control" data-testid="csf-aadhaar" maxlength="12" placeholder="XXXX XXXX XXXX" required></div>
+            <div class="col-md-6"><label class="form-label">Mobile Number <span class="required-star">*</span></label><input type="tel" class="form-control" data-testid="csf-mobile" maxlength="10" required></div>
+            <div class="col-md-6"><label class="form-label">Email Address <span class="required-star">*</span></label><input type="email" class="form-control" data-testid="csf-email" required></div>
+          </div>
+        </div>
+
+        <!-- Address -->
+        <div class="card-pane p-3 mb-3">
+          <div class="section-title">Communication Address</div>
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Flat / Room / Door / Block No.</label><input class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Building / Village Name</label><input class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Road / Street / Lane / Post Office</label><input class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Area / Locality / Sub Division</label><input class="form-control"></div>
+            <div class="col-md-5"><label class="form-label">Town / City / District</label><input class="form-control"></div>
+            <div class="col-md-4"><label class="form-label">State / Union Territory</label>
+              <select class="form-select" id="csfAddrState"><option value="">Select State</option></select>
+            </div>
+            <div class="col-md-3"><label class="form-label">PIN Code</label><input class="form-control" maxlength="6"></div>
+          </div>
+        </div>
+
+        <!-- AO Code -->
+        <div class="card-pane p-3 mb-3">
+          <div class="section-title">AO Code Selection</div>
+          <div class="row g-3 mb-2">
+            <div class="col-md-6"><label class="form-label">Select State / Union Territory <span class="required-star">*</span></label>
+              <select class="form-select" id="csfAoStateSelect" onchange="onCsfAoStateChange()" required><option value="">Select State</option></select>
+            </div>
+            <div class="col-md-6"><label class="form-label">Select City <span class="required-star">*</span></label>
+              <select class="form-select" id="csfAoCitySelect" onchange="onCsfAoCityChange()" required disabled><option value="">Select State First</option></select>
+            </div>
+          </div>
+          <div id="csfAoWardSection" style="display:none;">
+            <label class="form-label mb-2">Select Ward / Circle / Range / Commissioner <span class="required-star">*</span></label>
+            <div class="table-responsive">
+              <table class="table table-modern mb-0" style="min-width:680px;">
+                <thead><tr><th style="width:46px;">Select</th><th>Ward / Circle / Range / Commissioner</th><th>Category</th><th>Area Code</th><th>AO Type</th><th>Range Code</th><th>AO Number</th></tr></thead>
+                <tbody id="csfAoWardTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="row g-3 mt-3">
+            <div class="col-md-3"><label class="form-label">City</label><input class="form-control" id="csfAoCityField" readonly style="background:#FAFBFD;"></div>
+            <div class="col-md-3"><label class="form-label">Area Code</label><input class="form-control" id="csfAoAreaCode" readonly style="background:#FAFBFD;"></div>
+            <div class="col-md-2"><label class="form-label">AO Type</label><input class="form-control" id="csfAoTypeField" readonly style="background:#FAFBFD;"></div>
+            <div class="col-md-2"><label class="form-label">Range Code</label><input class="form-control" id="csfAoRangeCode" readonly style="background:#FAFBFD;"></div>
+            <div class="col-md-2"><label class="form-label">AO Number</label><input class="form-control" id="csfAoNumberField" readonly style="background:#FAFBFD;"></div>
+          </div>
+        </div>
+
+        <!-- Change / Correction -->
+        <div class="card-pane p-3 mb-3">
+          <div class="section-title">Change / Correction Requested <span class="required-star">*</span></div>
+          <div class="text-soft mb-2" style="font-size:.8rem;">Select the detail(s) you want to change or correct on the PAN card.</div>
+          <div class="row g-2">
+            <div class="col-6 col-md-4"><div class="form-check"><input class="form-check-input csf-correction-check" type="checkbox" id="csfCorrFullName" value="Full Name"><label class="form-check-label" for="csfCorrFullName">Full Name</label></div></div>
+            <div class="col-6 col-md-4"><div class="form-check"><input class="form-check-input csf-correction-check" type="checkbox" id="csfCorrFather" value="Father's Name"><label class="form-check-label" for="csfCorrFather">Father's Name</label></div></div>
+            <div class="col-6 col-md-4"><div class="form-check"><input class="form-check-input csf-correction-check" type="checkbox" id="csfCorrDob" value="Date of Birth"><label class="form-check-label" for="csfCorrDob">Date of Birth</label></div></div>
+            <div class="col-6 col-md-4"><div class="form-check"><input class="form-check-input csf-correction-check" type="checkbox" id="csfCorrGender" value="Gender"><label class="form-check-label" for="csfCorrGender">Gender</label></div></div>
+            <div class="col-6 col-md-4"><div class="form-check"><input class="form-check-input csf-correction-check" type="checkbox" id="csfCorrAddress" value="Address"><label class="form-check-label" for="csfCorrAddress">Address</label></div></div>
+          </div>
+        </div>
+
+        <!-- Documents -->
+        <div class="card-pane p-3 mb-3">
+          <div class="section-title">Document Details</div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-3"><label class="form-label">Number of Documents</label><input type="number" class="form-control" data-testid="csf-num-docs" min="1" value="1"></div>
+            <div class="col-md-3"><label class="form-label">Proof of Identity <span class="required-star">*</span></label>
+              <select class="form-select" required><option value="">Select Document</option><option selected>Aadhaar Card</option><option>Voter ID</option><option>Passport</option><option>Driving Licence</option></select>
+            </div>
+            <div class="col-md-3"><label class="form-label">Proof of Address <span class="required-star">*</span></label>
+              <select class="form-select" required><option value="">Select Document</option><option selected>Aadhaar Card</option><option>Voter ID</option><option>Utility Bill</option><option>Bank Statement</option></select>
+            </div>
+            <div class="col-md-3"><label class="form-label">Proof of DOB <span class="required-star">*</span></label>
+              <select class="form-select" required><option value="">Select Document</option><option selected>Aadhaar Card</option><option>Birth Certificate</option><option>Passport</option><option>10th Marksheet</option></select>
+            </div>
+          </div>
+          <div class="row g-3">
+            <div class="col-6 col-md-3">
+              <div class="upload-box" onclick="this.querySelector('input').click()"><i class="fa-solid fa-id-card mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Identity Proof</div><div class="text-soft upload-status" style="font-size:.68rem;">Tap to upload</div><input type="file" class="d-none" accept="image/*,.pdf" data-doc="identity_proof" onchange="onDocChosen(this)"></div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="upload-box" onclick="this.querySelector('input').click()"><i class="fa-solid fa-house mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Address Proof</div><div class="text-soft upload-status" style="font-size:.68rem;">Tap to upload</div><input type="file" class="d-none" accept="image/*,.pdf" data-doc="address_proof" onchange="onDocChosen(this)"></div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="upload-box" onclick="this.querySelector('input').click()"><i class="fa-solid fa-camera mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Applicant Photo</div><div class="text-soft upload-status" style="font-size:.68rem;">Tap to upload</div><input type="file" class="d-none" accept="image/*" data-doc="photo" onchange="onDocChosen(this)"></div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="upload-box" onclick="this.querySelector('input').click()"><i class="fa-solid fa-signature mb-2 d-block"></i><div class="fw-semibold" style="font-size:.8rem;">Signature</div><div class="text-soft upload-status" style="font-size:.68rem;">Tap to upload</div><input type="file" class="d-none" accept="image/*" data-doc="signature" onchange="onDocChosen(this)"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-pane p-3 mb-3">
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="csfDeclareCheck" required>
+            <label class="form-check-label text-soft" style="font-size:.82rem;" for="csfDeclareCheck">I declare that the information provided above is true and correct to the best of my knowledge.</label>
+          </div>
+          <button type="submit" class="btn btn-navy btn-touch w-100" data-testid="csf-submit-btn"><i class="fa-solid fa-paper-plane me-1"></i> Submit Correction Application</button>
+        </div>
+      </form>
+    </div>
 
     <div class="app-view" id="view-pan-hold-new">
       <div class="alert d-flex align-items-start gap-2 mb-3" style="background:var(--hold-bg);border:1px solid #EBD98A;border-radius:12px;">
@@ -1656,21 +1803,31 @@ h1,h2,h3,h4,h5,h6,.font-display{font-family:'Poppins',sans-serif;}
     <div class="app-view" id="view-wallet-recharge">
       <div class="row g-3">
         <div class="col-lg-5" id="rechargeFormCol">
+          <div class="card-pane p-3 mb-3" id="rechargeUpiCard" style="display:none;">
+            <div class="section-title"><i class="fa-solid fa-qrcode me-2"></i>Pay via UPI</div>
+            <div class="text-center">
+              <img id="rechargeUpiQr" src="" alt="UPI QR" style="display:none;max-width:180px;border-radius:12px;border:1px solid var(--line);margin-bottom:.5rem;">
+              <div id="rechargeUpiId" class="fw-bold" style="font-family:'Poppins',sans-serif;"></div>
+              <div id="rechargeUpiName" class="text-soft" style="font-size:.82rem;"></div>
+              <div id="rechargeUpiNote" class="text-soft mt-1" style="font-size:.78rem;"></div>
+            </div>
+            <div class="text-soft mt-2" style="font-size:.76rem;"><i class="fa-solid fa-circle-info me-1"></i>Pay the amount, then enter the UTR / reference below for approval.</div>
+          </div>
           <div class="card-pane p-3">
             <div class="section-title">New Recharge Request</div>
             <form onsubmit="handleRechargeSubmit(event)">
               <div class="mb-3">
                 <label class="form-label">Amount <span class="required-star">*</span></label>
                 <div class="position-relative">
-                  <input type="number" class="form-control" placeholder="Enter amount" style="padding-left:2.2rem;" required>
+                  <input type="number" class="form-control" data-testid="recharge-amount" placeholder="Enter amount" style="padding-left:2.2rem;" required>
                   <i class="fa-solid fa-indian-rupee-sign position-absolute" style="left:.9rem;top:50%;transform:translateY(-50%);color:var(--ink-soft);font-size:.8rem;"></i>
                 </div>
               </div>
               <div class="mb-3">
                 <label class="form-label">UTR Number <span class="required-star">*</span></label>
-                <input type="text" class="form-control" placeholder="Enter UTR / transaction reference" required>
+                <input type="text" class="form-control" data-testid="recharge-utr" placeholder="Enter UTR / transaction reference" required>
               </div>
-              <button type="submit" class="btn btn-navy btn-touch w-100"><i class="fa-solid fa-paper-plane me-1"></i> Submit Recharge Request</button>
+              <button type="submit" class="btn btn-navy btn-touch w-100" data-testid="recharge-submit-btn"><i class="fa-solid fa-paper-plane me-1"></i> Submit Recharge Request</button>
             </form>
           </div>
         </div>
@@ -1804,6 +1961,34 @@ h1,h2,h3,h4,h5,h6,.font-display{font-family:'Poppins',sans-serif;}
               <div class="mb-2"><label class="form-label">Username</label><input class="form-control" id="ftpUser" placeholder="FTP username"></div>
               <div class="mb-3"><label class="form-label">Password</label><input type="password" class="form-control" id="ftpPass" placeholder="FTP password"></div>
               <button type="submit" class="btn btn-navy btn-touch w-100" data-testid="save-ftp-btn"><i class="fa-solid fa-floppy-disk me-1"></i> Save FTP Settings</button>
+            </form>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="card-pane p-3">
+            <div class="section-title"><i class="fa-solid fa-qrcode me-2"></i>UPI / Recharge Payment Settings</div>
+            <p class="text-soft" style="font-size:.8rem;">Shown to distributors and retailers on the wallet recharge screen so they can pay before submitting a UTR.</p>
+            <form onsubmit="saveUpiSettings(event)">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="mb-2"><label class="form-label">UPI ID</label><input class="form-control" id="upiId" placeholder="graminpanseva@okaxis" data-testid="upi-id-input"></div>
+                  <div class="mb-2"><label class="form-label">Payee / Account Name</label><input class="form-control" id="upiName" placeholder="Gramin PAN Seva" data-testid="upi-name-input"></div>
+                  <div class="mb-2"><label class="form-label">Payment Note (optional)</label><input class="form-control" id="upiNote" placeholder="Add UTR after payment for approval"></div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">UPI QR Code Image</label>
+                  <div class="upload-box" onclick="document.getElementById('upiQrInput').click()" data-testid="upi-qr-upload">
+                    <i class="fa-solid fa-qrcode mb-2 d-block"></i>
+                    <div class="fw-semibold" style="font-size:.85rem;">Tap to upload QR code</div>
+                    <div class="text-soft" style="font-size:.72rem;" id="upiQrStatus">PNG / JPG, max 5MB</div>
+                    <input type="file" id="upiQrInput" class="d-none" accept="image/*" onchange="onUpiQrChosen(this)">
+                  </div>
+                  <div class="text-center mt-2">
+                    <img id="upiQrPreview" src="" alt="UPI QR" style="display:none;max-width:160px;border-radius:12px;border:1px solid var(--line);">
+                  </div>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-navy btn-touch w-100 mt-3" data-testid="save-upi-btn"><i class="fa-solid fa-floppy-disk me-1"></i> Save UPI / QR Settings</button>
             </form>
           </div>
         </div>
@@ -2056,7 +2241,7 @@ function getNavConfig(role){
     (role==='superadmin'||role==='superdistributor') ? {id:'users-dist', icon:'fa-user-gear', label:'Distributors'} : null,
     role!=='retailer' ? {id:'users-retailer', icon:'fa-user', label:'Retailers'} : null
   ].filter(Boolean)};
-  const panServices = {section:'PAN Services', items:[
+  const panServices = role==='superadmin' ? null : {section:'PAN Services', items:[
     {id:'pan-new', icon:'fa-file-circle-plus', label:'New PAN'},
     {id:'pan-csf', icon:'fa-file-pen', label:'CSF PAN'},
     {id:'pan-hold-new', icon:'fa-file-circle-exclamation', label:'New Hold PAN'},
@@ -2128,6 +2313,11 @@ const VIEW_TITLES = {
 
 function goTo(viewId){
   if(viewId === 'logout'){ doLogout(); return; }
+  const adminBlocked = ['pan-new','pan-csf','pan-hold-new','pan-hold-csf'];
+  if(APP.role === 'superadmin' && adminBlocked.includes(viewId)){
+    showToast('Not Available', 'Administrators review applications and cannot submit them.', 'warning');
+    viewId = 'pan-status';
+  }
   APP.currentView = viewId;
   document.querySelectorAll('.app-view').forEach(v=>v.classList.remove('active'));
   const target = document.getElementById('view-'+viewId);
@@ -2263,7 +2453,8 @@ function renderViewData(viewId){
   if(viewId === 'users-dist') loadUserTable('users-dist-table','distributor');
   if(viewId === 'users-retailer') loadUserTable('users-retailer-table','retailer');
   if(viewId === 'pan-new'){ uploadedDocs = {}; initNewPanForm(); }
-  if(['pan-csf','pan-hold-new','pan-hold-csf'].includes(viewId)){ uploadedDocs = {}; initPanForms(); }
+  if(viewId === 'pan-csf'){ uploadedDocs = {}; initCsfForm(); }
+  if(['pan-hold-new','pan-hold-csf'].includes(viewId)){ uploadedDocs = {}; initPanForms(); }
   if(viewId === 'pan-status') renderPanStatusTable();
   if(viewId === 'wallet-history') renderWalletHistoryTable();
   if(viewId === 'wallet-recharge') renderRechargeTable();
@@ -2488,7 +2679,7 @@ async function reviewRegistration(decision){
 }
 
 /* ---------------- PAN FORMS ---------------- */
-const PAN_FORM_HOSTS = ['csf','hold-new','hold-csf'];
+const PAN_FORM_HOSTS = ['hold-new','hold-csf'];
 function initPanForms(){
   PAN_FORM_HOSTS.forEach(key=>{
     const host = document.getElementById('panFormHost-'+key);
@@ -2503,6 +2694,87 @@ async function handlePanSubmit(e){
   try{ const r = await api('/pan-applications', {method:'POST', body:{type:'CSF PAN', applicant_name:'CSF Applicant', form_data:{documents:uploadedDocs}}});
     showToast('Application Submitted', r.message, 'success'); goTo('pan-status');
   }catch(err){ showToast('Submission Failed', err.message, 'danger'); }
+}
+
+/* ---------------- CSF (CORRECTION) FORM ---------------- */
+let csfFormInitialized = false;
+async function initCsfForm(){
+  uploadedDocs = {};
+  if(csfFormInitialized) return;
+  csfFormInitialized = true;
+  await populateStateSelect('csfAddrState');
+  await populateStateSelect('csfAoStateSelect');
+}
+async function onCsfAoStateChange(){
+  const state = document.getElementById('csfAoStateSelect').value;
+  const citySel = document.getElementById('csfAoCitySelect');
+  citySel.innerHTML = '<option value="">Select City</option>';
+  document.getElementById('csfAoWardSection').style.display = 'none';
+  clearCsfAoFields();
+  if(!state){ citySel.disabled = true; citySel.innerHTML = '<option value="">Select State First</option>'; return; }
+  citySel.disabled = false;
+  try{ const cities = await api('/cities?state='+encodeURIComponent(state));
+    cities.forEach(c=>{ const opt = document.createElement('option'); opt.value = c; opt.textContent = c; citySel.appendChild(opt); });
+  }catch(e){}
+}
+async function onCsfAoCityChange(){
+  const state = document.getElementById('csfAoStateSelect').value;
+  const city = document.getElementById('csfAoCitySelect').value;
+  clearCsfAoFields();
+  if(!city){ document.getElementById('csfAoWardSection').style.display = 'none'; return; }
+  document.getElementById('csfAoCityField').value = city;
+  document.getElementById('csfAoWardSection').style.display = 'block';
+  document.getElementById('csfAoWardTableBody').innerHTML = `<tr><td colspan="7" class="text-center text-soft py-3" style="font-size:.82rem;"><i class="fa-solid fa-circle-notch fa-spin me-2"></i>Loading AO codes for ${city}...</td></tr>`;
+  try{ const wards = await api('/ao-codes?city='+encodeURIComponent(city)+'&state='+encodeURIComponent(state));
+    if(!wards.length){ document.getElementById('csfAoWardTableBody').innerHTML = `<tr><td colspan="7" class="text-center text-soft py-3" style="font-size:.82rem;">No AO codes found for ${city}.</td></tr>`; return; }
+    const tbody = document.getElementById('csfAoWardTableBody');
+    const catBadge = (cat) => { const m = {'Individual':'bd-active','Non-Individual':'bd-pending','Both':'bd-submitted'}; return `<span class="badge-pill ${m[cat]||'bd-pending'}">${cat||'—'}</span>`; };
+    tbody.innerHTML = wards.map((w, idx) => `
+      <tr class="csf-aoward-row" onclick="selectCsfAoWard(${idx})" id="csfAoRow-${idx}">
+        <td><input type="radio" name="csfAoWard" id="csfAoRadio-${idx}" onchange="selectCsfAoWard(${idx})"></td>
+        <td class="fw-semibold">${w.ward}</td><td>${catBadge(w.category)}</td><td>${w.area_code}</td><td>${w.ao_type}</td><td>${w.range_code}</td><td>${w.ao_number}</td>
+      </tr>`).join('');
+    tbody.dataset.wards = JSON.stringify(wards);
+  }
+  catch(e){ document.getElementById('csfAoWardTableBody').innerHTML = `<tr><td colspan="7" class="text-center text-soft py-3">Failed to load AO codes.</td></tr>`; }
+}
+function selectCsfAoWard(idx){
+  const tbody = document.getElementById('csfAoWardTableBody');
+  const wards = JSON.parse(tbody.dataset.wards || '[]');
+  const w = wards[idx]; if(!w) return;
+  document.querySelectorAll('.csf-aoward-row').forEach(r=>r.classList.remove('selected'));
+  document.getElementById('csfAoRow-'+idx).classList.add('selected');
+  document.getElementById('csfAoRadio-'+idx).checked = true;
+  document.getElementById('csfAoAreaCode').value = w.area_code;
+  document.getElementById('csfAoTypeField').value = w.ao_type;
+  document.getElementById('csfAoRangeCode').value = w.range_code;
+  document.getElementById('csfAoNumberField').value = w.ao_number;
+}
+function clearCsfAoFields(){ ['csfAoAreaCode','csfAoTypeField','csfAoRangeCode','csfAoNumberField'].forEach(id=>{ const el = document.getElementById(id); if(el) el.value=''; }); }
+function csfVal(testid){ const el = document.querySelector('[data-testid="'+testid+'"]'); return el ? el.value.trim() : ''; }
+async function handleCsfSubmit(e){
+  e.preventDefault();
+  const corrections = Array.from(document.querySelectorAll('.csf-correction-check:checked')).map(c=>c.value);
+  if(!corrections.length){ showToast('Select Correction', 'Choose at least one detail to change or correct.', 'warning'); return; }
+  const first = csfVal('csf-first-name'), mid = csfVal('csf-middle-name'), last = csfVal('csf-last-name');
+  const body = {
+    type:'CSF PAN',
+    applicant_name: [first, mid, last].filter(Boolean).join(' ') || 'CSF Applicant',
+    state: document.getElementById('csfAoStateSelect').value, city: document.getElementById('csfAoCitySelect').value,
+    area_code: document.getElementById('csfAoAreaCode').value, ao_type: document.getElementById('csfAoTypeField').value,
+    range_code: document.getElementById('csfAoRangeCode').value, ao_number: document.getElementById('csfAoNumberField').value,
+    form_data: {
+      pan_number: csfVal('csf-pan-number'), name_on_card: csfVal('csf-name-on-card'),
+      first_name: first, middle_name: mid, last_name: last,
+      dob: csfVal('csf-dob'), gender: csfVal('csf-gender'),
+      father_first: csfVal('csf-father-first'), mother_first: csfVal('csf-mother-first'),
+      name_as_aadhaar: csfVal('csf-name-aadhaar'), aadhaar: csfVal('csf-aadhaar'),
+      mobile: csfVal('csf-mobile'), email: csfVal('csf-email'),
+      num_documents: csfVal('csf-num-docs'), corrections, documents: uploadedDocs,
+    },
+  };
+  try{ const r = await api('/pan-applications', {method:'POST', body}); showToast('Application Submitted', r.message, 'success'); goTo('pan-status'); }
+  catch(err){ showToast('Submission Failed', err.message, 'danger'); }
 }
 
 let newPanFormInitialized = false;
@@ -2738,6 +3010,7 @@ async function renderRechargeTable(){
   document.getElementById('rechargeFormCol').style.display = isAdmin ? 'none' : 'block';
   document.getElementById('rechargeTableCol').className = isAdmin ? 'col-12' : 'col-lg-7';
   document.getElementById('rechargeTableTitle').textContent = isAdmin ? 'Pending & Past Recharge Requests' : 'Recharge Requests';
+  if(!isAdmin) loadRechargeUpi();
   if(isAdmin){ const [t,s] = VIEW_TITLES['wallet-recharge-admin']; document.getElementById('desktopPageTitle').textContent=t; document.getElementById('desktopPageSub').textContent=s; }
   try{ rechargeList = await api('/wallet/recharge-requests'); }catch(err){ host.innerHTML=''; return; }
   function actionsHtml(r){ if(!isAdmin) return ''; if(r.status !== 'Pending') return `<span class="text-soft" style="font-size:.76rem;">Reviewed</span>`;
@@ -2773,6 +3046,20 @@ async function reviewRechargeRequest(decision){
     showToast(decision==='Approved'?'Recharge Approved':'Recharge Rejected', `Request ${decision.toLowerCase()}.${decision==='Approved'?' Wallet credited.':''}`, decision==='Approved'?'success':'danger');
     renderRechargeTable();
   }catch(err){ showToast('Error', err.message, 'danger'); }
+}
+async function loadRechargeUpi(){
+  const card = document.getElementById('rechargeUpiCard'); if(!card) return;
+  try{
+    const s = await api('/settings');
+    const upi = s.upi || {};
+    if(!upi.upi_id && !upi.qr_url){ card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    const qr = document.getElementById('rechargeUpiQr');
+    if(upi.qr_url){ qr.src = upi.qr_url; qr.style.display = 'inline-block'; } else { qr.style.display = 'none'; }
+    document.getElementById('rechargeUpiId').textContent = upi.upi_id || '';
+    document.getElementById('rechargeUpiName').textContent = upi.payee_name || '';
+    document.getElementById('rechargeUpiNote').textContent = upi.note || '';
+  }catch(err){ card.style.display = 'none'; }
 }
 async function handleRechargeSubmit(e){
   e.preventDefault();
@@ -2837,7 +3124,33 @@ async function renderSettingsForms(){
     document.getElementById('ftpBase').value = ftp.base_path || '';
     document.getElementById('ftpUser').value = ftp.username || '';
     document.getElementById('ftpPass').value = ftp.password || '';
+    const upi = s.upi || {};
+    document.getElementById('upiId').value = upi.upi_id || '';
+    document.getElementById('upiName').value = upi.payee_name || '';
+    document.getElementById('upiNote').value = upi.note || '';
+    const qrImg = document.getElementById('upiQrPreview');
+    if(upi.qr_url){ qrImg.src = upi.qr_url; qrImg.style.display = 'inline-block'; uploadedUpiQr = upi.qr_url; document.getElementById('upiQrStatus').textContent = 'QR code uploaded'; }
+    else { qrImg.style.display = 'none'; uploadedUpiQr = ''; }
   }catch(err){ showToast('Error', err.message, 'danger'); }
+}
+let uploadedUpiQr = '';
+async function onUpiQrChosen(input){
+  if(!input.files || !input.files[0]) return;
+  const status = document.getElementById('upiQrStatus');
+  status.textContent = 'Uploading...';
+  try{
+    const up = await apiUpload(input.files[0]);
+    uploadedUpiQr = up.url || up.path;
+    const img = document.getElementById('upiQrPreview');
+    img.src = uploadedUpiQr; img.style.display = 'inline-block';
+    status.textContent = 'QR code uploaded';
+  }catch(err){ status.textContent = 'Upload failed'; showToast('Upload Failed', err.message, 'danger'); }
+}
+async function saveUpiSettings(e){
+  e.preventDefault();
+  const upi = { upi_id:_v('upiId'), payee_name:_v('upiName'), note:_v('upiNote'), qr_url:uploadedUpiQr };
+  try{ await api('/settings', {method:'PUT', body:{upi}}); showToast('Settings Saved', 'UPI / QR payment settings updated.', 'success'); }
+  catch(err){ showToast('Error', err.message, 'danger'); }
 }
 async function saveSmtpSettings(e){
   e.preventDefault();

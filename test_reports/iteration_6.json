@@ -1,0 +1,62 @@
+{
+  "summary": "Iteration-6 verification: admin restrictions, UPI/QR settings, new New-PAN fields, full CSF correction form, Recharge UPI display. Backend: 6/6 pytest passed. Frontend: all required UI elements present and end-to-end CSF submission succeeded for retailer (APP-22058 created). NOTE: Frontend served HTML was STALE on first load — required `sudo supervisorctl restart frontend` for CRA dev server to pick up the latest /app/frontend/public/index.html. After restart, all iteration-6 elements (data-testid hooks, UPI card, etc.) are served.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "CSF submit empty-correction warning",
+        "issue": "When user clicks 'Submit' on CSF with NO correction checkbox selected, HTML5 'required' validation on the form fires first (focuses an empty input), so the JS 'Select Correction' toast never reaches the user in practice. The handler does have the check, but it is unreachable until all 'required' inputs are filled. Consider either removing native 'required' from a few fields and validating in JS, or moving the correction-checkbox guard ahead with novalidate."
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Recharge Request",
+        "issues": [
+          "Amount and UTR inputs inside #rechargeFormCol do not have data-testid or stable ids. Add e.g. data-testid='recharge-amount' / 'recharge-utr' / 'recharge-submit-btn' for testability (the review request explicitly mentioned these selectors)."
+        ]
+      },
+      {
+        "screen": "Settings (Admin) — UPI card",
+        "issues": [
+          "QR upload tile shows only 'Tap to upload QR code' visually — the file input is wired correctly via data-testid='upi-qr-upload' (works, verified) but the label could indicate accepted formats inline."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration6.py",
+    "/app/test_reports/pytest/iter6.xml"
+  ],
+  "action_items": [
+    "(Operational) The CRA dev-server caches /app/frontend/public/index.html — after editing the source HTML or running /app/build_index.py the frontend MUST be restarted (`sudo supervisorctl restart frontend`) for users to receive the new bundle. Recommend adding a post-build hook to /app/build_index.py that runs the restart, OR add a small comment/section in README so future iterations remember.",
+    "Add data-testid attributes (recharge-amount, recharge-utr, recharge-submit-btn) to the New Recharge Request form inputs in #rechargeFormCol.",
+    "CSF form: re-order client-side validation so the 'Select Correction' warning toast can actually fire (currently shadowed by native HTML5 required validation)."
+  ],
+  "critical_code_review_comments": [
+    "Backend guards verified: POST /api/pan-applications returns 403 for superadmin with msg 'Administrators review applications and cannot submit them.'; POST /api/wallet/recharge returns 403 for superadmin. Retailer can still POST /api/wallet/recharge (200). GET /api/settings returns 'upi' object for non-admins WITHOUT smtp/ftp secret leakage — verified.",
+    "PUT /api/settings persists upi.upi_id / upi.payee_name; re-GET returns the values. Verified end-to-end through the UI: 'Settings Saved — UPI / QR payment settings updated.' toast and Retailer's Recharge view shows graminpan@upi / Gramin PAN Seva instantly.",
+    "Admin sidebar correctly omits the entire PAN SERVICES section + the four sub-links (New PAN, CSF PAN, New Hold PAN, CSF Hold PAN). Admin still sees PAN Status, Recharge Approvals, Settings, Rate Setup.",
+    "goTo('pan-new') and goTo('pan-csf') as admin keep the admin on the previous view and raise a warning toast 'Not Available — Administrators review applications and cannot submit them.' (verified via DOM toasts).",
+    "New PAN form contains data-testid='np-name-on-card' and data-testid='np-pan-card-type' with options ['', 'Normal', 'Minor'] — verified.",
+    "CSF PAN form is the full correction form: PAN Number, applicant identity, parent details, AO code cascade (State→City→Ward table, ids csfAoStateSelect / csfAoCitySelect / csfAoWardTableBody), 5 .csf-correction-check checkboxes, declaration and data-testid='csf-submit-btn'. End-to-end submit succeeded: APP-22058 / TestFN TestLN / CSF PAN / Processed.",
+    "Frontend hot reload caveat (action item above) is the only operational gotcha worth flagging.",
+    "Code-quality nit: handleCsfSubmit uses required attrs on most inputs AND a JS-level corrections.length check; the JS check is never reachable in practice. Either drop required from one of the inputs or call form.noValidate before reading values."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration6.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 iter-6 specific tests)",
+    "frontend": "100% on the required iter-6 flows (admin restrictions, UPI settings, recharge UPI display, New PAN fields, CSF full form + successful submission)"
+  },
+  "test_credentials": "ADMIN/Bakkar@111 (Super Admin), RT10234/Password@123 (Retailer) — both verified working.",
+  "seed_data_creation": "Created CSF PAN application APP-22058 for retailer RT10234 (applicant 'TestFN TestLN'); created retailer recharge requests with UTR TEST_UTR_* (Pending). Admin UPI settings set to graminpan@upi / Gramin PAN Seva.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "When iteration-6 (or future) UI changes don't appear on the preview URL, the CRA dev-server is likely caching the previous public/index.html — run `sudo supervisorctl restart frontend` and wait ~5s. Login form ids are #loginUserId / #loginPassword, button = #authView-login button[type='submit']. Recharge form lacks data-testid on amount/UTR; use placeholder selectors or labels. CSF AO cascade uses ids csfAoStateSelect / csfAoCitySelect / csfAoWardTableBody (NOT csfAoState/City). To make the CSF form submit, also fill #csfDeclareCheck and at least one .csf-correction-check.",
+  "rca of the issue": "Initial frontend run showed ZERO iteration-6 elements in DOM. Root cause: the CRA dev-server (yarn start) had cached the older public/index.html (198KB) while disk contained the new 222KB build with iter-6 markup. `sudo supervisorctl restart frontend` resolved it. Recommend the main agent updates /app/build_index.py to also restart the frontend supervisor program after writing the new index.html so this isn't repeated."
+}

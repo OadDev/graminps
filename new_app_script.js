@@ -93,7 +93,7 @@ function getNavConfig(role){
     (role==='superadmin'||role==='superdistributor') ? {id:'users-dist', icon:'fa-user-gear', label:'Distributors'} : null,
     role!=='retailer' ? {id:'users-retailer', icon:'fa-user', label:'Retailers'} : null
   ].filter(Boolean)};
-  const panServices = {section:'PAN Services', items:[
+  const panServices = role==='superadmin' ? null : {section:'PAN Services', items:[
     {id:'pan-new', icon:'fa-file-circle-plus', label:'New PAN'},
     {id:'pan-csf', icon:'fa-file-pen', label:'CSF PAN'},
     {id:'pan-hold-new', icon:'fa-file-circle-exclamation', label:'New Hold PAN'},
@@ -165,6 +165,11 @@ const VIEW_TITLES = {
 
 function goTo(viewId){
   if(viewId === 'logout'){ doLogout(); return; }
+  const adminBlocked = ['pan-new','pan-csf','pan-hold-new','pan-hold-csf'];
+  if(APP.role === 'superadmin' && adminBlocked.includes(viewId)){
+    showToast('Not Available', 'Administrators review applications and cannot submit them.', 'warning');
+    viewId = 'pan-status';
+  }
   APP.currentView = viewId;
   document.querySelectorAll('.app-view').forEach(v=>v.classList.remove('active'));
   const target = document.getElementById('view-'+viewId);
@@ -300,7 +305,8 @@ function renderViewData(viewId){
   if(viewId === 'users-dist') loadUserTable('users-dist-table','distributor');
   if(viewId === 'users-retailer') loadUserTable('users-retailer-table','retailer');
   if(viewId === 'pan-new'){ uploadedDocs = {}; initNewPanForm(); }
-  if(['pan-csf','pan-hold-new','pan-hold-csf'].includes(viewId)){ uploadedDocs = {}; initPanForms(); }
+  if(viewId === 'pan-csf'){ uploadedDocs = {}; initCsfForm(); }
+  if(['pan-hold-new','pan-hold-csf'].includes(viewId)){ uploadedDocs = {}; initPanForms(); }
   if(viewId === 'pan-status') renderPanStatusTable();
   if(viewId === 'wallet-history') renderWalletHistoryTable();
   if(viewId === 'wallet-recharge') renderRechargeTable();
@@ -525,7 +531,7 @@ async function reviewRegistration(decision){
 }
 
 /* ---------------- PAN FORMS ---------------- */
-const PAN_FORM_HOSTS = ['csf','hold-new','hold-csf'];
+const PAN_FORM_HOSTS = ['hold-new','hold-csf'];
 function initPanForms(){
   PAN_FORM_HOSTS.forEach(key=>{
     const host = document.getElementById('panFormHost-'+key);
@@ -540,6 +546,87 @@ async function handlePanSubmit(e){
   try{ const r = await api('/pan-applications', {method:'POST', body:{type:'CSF PAN', applicant_name:'CSF Applicant', form_data:{documents:uploadedDocs}}});
     showToast('Application Submitted', r.message, 'success'); goTo('pan-status');
   }catch(err){ showToast('Submission Failed', err.message, 'danger'); }
+}
+
+/* ---------------- CSF (CORRECTION) FORM ---------------- */
+let csfFormInitialized = false;
+async function initCsfForm(){
+  uploadedDocs = {};
+  if(csfFormInitialized) return;
+  csfFormInitialized = true;
+  await populateStateSelect('csfAddrState');
+  await populateStateSelect('csfAoStateSelect');
+}
+async function onCsfAoStateChange(){
+  const state = document.getElementById('csfAoStateSelect').value;
+  const citySel = document.getElementById('csfAoCitySelect');
+  citySel.innerHTML = '<option value="">Select City</option>';
+  document.getElementById('csfAoWardSection').style.display = 'none';
+  clearCsfAoFields();
+  if(!state){ citySel.disabled = true; citySel.innerHTML = '<option value="">Select State First</option>'; return; }
+  citySel.disabled = false;
+  try{ const cities = await api('/cities?state='+encodeURIComponent(state));
+    cities.forEach(c=>{ const opt = document.createElement('option'); opt.value = c; opt.textContent = c; citySel.appendChild(opt); });
+  }catch(e){}
+}
+async function onCsfAoCityChange(){
+  const state = document.getElementById('csfAoStateSelect').value;
+  const city = document.getElementById('csfAoCitySelect').value;
+  clearCsfAoFields();
+  if(!city){ document.getElementById('csfAoWardSection').style.display = 'none'; return; }
+  document.getElementById('csfAoCityField').value = city;
+  document.getElementById('csfAoWardSection').style.display = 'block';
+  document.getElementById('csfAoWardTableBody').innerHTML = `<tr><td colspan="7" class="text-center text-soft py-3" style="font-size:.82rem;"><i class="fa-solid fa-circle-notch fa-spin me-2"></i>Loading AO codes for ${city}...</td></tr>`;
+  try{ const wards = await api('/ao-codes?city='+encodeURIComponent(city)+'&state='+encodeURIComponent(state));
+    if(!wards.length){ document.getElementById('csfAoWardTableBody').innerHTML = `<tr><td colspan="7" class="text-center text-soft py-3" style="font-size:.82rem;">No AO codes found for ${city}.</td></tr>`; return; }
+    const tbody = document.getElementById('csfAoWardTableBody');
+    const catBadge = (cat) => { const m = {'Individual':'bd-active','Non-Individual':'bd-pending','Both':'bd-submitted'}; return `<span class="badge-pill ${m[cat]||'bd-pending'}">${cat||'—'}</span>`; };
+    tbody.innerHTML = wards.map((w, idx) => `
+      <tr class="csf-aoward-row" onclick="selectCsfAoWard(${idx})" id="csfAoRow-${idx}">
+        <td><input type="radio" name="csfAoWard" id="csfAoRadio-${idx}" onchange="selectCsfAoWard(${idx})"></td>
+        <td class="fw-semibold">${w.ward}</td><td>${catBadge(w.category)}</td><td>${w.area_code}</td><td>${w.ao_type}</td><td>${w.range_code}</td><td>${w.ao_number}</td>
+      </tr>`).join('');
+    tbody.dataset.wards = JSON.stringify(wards);
+  }
+  catch(e){ document.getElementById('csfAoWardTableBody').innerHTML = `<tr><td colspan="7" class="text-center text-soft py-3">Failed to load AO codes.</td></tr>`; }
+}
+function selectCsfAoWard(idx){
+  const tbody = document.getElementById('csfAoWardTableBody');
+  const wards = JSON.parse(tbody.dataset.wards || '[]');
+  const w = wards[idx]; if(!w) return;
+  document.querySelectorAll('.csf-aoward-row').forEach(r=>r.classList.remove('selected'));
+  document.getElementById('csfAoRow-'+idx).classList.add('selected');
+  document.getElementById('csfAoRadio-'+idx).checked = true;
+  document.getElementById('csfAoAreaCode').value = w.area_code;
+  document.getElementById('csfAoTypeField').value = w.ao_type;
+  document.getElementById('csfAoRangeCode').value = w.range_code;
+  document.getElementById('csfAoNumberField').value = w.ao_number;
+}
+function clearCsfAoFields(){ ['csfAoAreaCode','csfAoTypeField','csfAoRangeCode','csfAoNumberField'].forEach(id=>{ const el = document.getElementById(id); if(el) el.value=''; }); }
+function csfVal(testid){ const el = document.querySelector('[data-testid="'+testid+'"]'); return el ? el.value.trim() : ''; }
+async function handleCsfSubmit(e){
+  e.preventDefault();
+  const corrections = Array.from(document.querySelectorAll('.csf-correction-check:checked')).map(c=>c.value);
+  if(!corrections.length){ showToast('Select Correction', 'Choose at least one detail to change or correct.', 'warning'); return; }
+  const first = csfVal('csf-first-name'), mid = csfVal('csf-middle-name'), last = csfVal('csf-last-name');
+  const body = {
+    type:'CSF PAN',
+    applicant_name: [first, mid, last].filter(Boolean).join(' ') || 'CSF Applicant',
+    state: document.getElementById('csfAoStateSelect').value, city: document.getElementById('csfAoCitySelect').value,
+    area_code: document.getElementById('csfAoAreaCode').value, ao_type: document.getElementById('csfAoTypeField').value,
+    range_code: document.getElementById('csfAoRangeCode').value, ao_number: document.getElementById('csfAoNumberField').value,
+    form_data: {
+      pan_number: csfVal('csf-pan-number'), name_on_card: csfVal('csf-name-on-card'),
+      first_name: first, middle_name: mid, last_name: last,
+      dob: csfVal('csf-dob'), gender: csfVal('csf-gender'),
+      father_first: csfVal('csf-father-first'), mother_first: csfVal('csf-mother-first'),
+      name_as_aadhaar: csfVal('csf-name-aadhaar'), aadhaar: csfVal('csf-aadhaar'),
+      mobile: csfVal('csf-mobile'), email: csfVal('csf-email'),
+      num_documents: csfVal('csf-num-docs'), corrections, documents: uploadedDocs,
+    },
+  };
+  try{ const r = await api('/pan-applications', {method:'POST', body}); showToast('Application Submitted', r.message, 'success'); goTo('pan-status'); }
+  catch(err){ showToast('Submission Failed', err.message, 'danger'); }
 }
 
 let newPanFormInitialized = false;
@@ -775,6 +862,7 @@ async function renderRechargeTable(){
   document.getElementById('rechargeFormCol').style.display = isAdmin ? 'none' : 'block';
   document.getElementById('rechargeTableCol').className = isAdmin ? 'col-12' : 'col-lg-7';
   document.getElementById('rechargeTableTitle').textContent = isAdmin ? 'Pending & Past Recharge Requests' : 'Recharge Requests';
+  if(!isAdmin) loadRechargeUpi();
   if(isAdmin){ const [t,s] = VIEW_TITLES['wallet-recharge-admin']; document.getElementById('desktopPageTitle').textContent=t; document.getElementById('desktopPageSub').textContent=s; }
   try{ rechargeList = await api('/wallet/recharge-requests'); }catch(err){ host.innerHTML=''; return; }
   function actionsHtml(r){ if(!isAdmin) return ''; if(r.status !== 'Pending') return `<span class="text-soft" style="font-size:.76rem;">Reviewed</span>`;
@@ -810,6 +898,20 @@ async function reviewRechargeRequest(decision){
     showToast(decision==='Approved'?'Recharge Approved':'Recharge Rejected', `Request ${decision.toLowerCase()}.${decision==='Approved'?' Wallet credited.':''}`, decision==='Approved'?'success':'danger');
     renderRechargeTable();
   }catch(err){ showToast('Error', err.message, 'danger'); }
+}
+async function loadRechargeUpi(){
+  const card = document.getElementById('rechargeUpiCard'); if(!card) return;
+  try{
+    const s = await api('/settings');
+    const upi = s.upi || {};
+    if(!upi.upi_id && !upi.qr_url){ card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    const qr = document.getElementById('rechargeUpiQr');
+    if(upi.qr_url){ qr.src = upi.qr_url; qr.style.display = 'inline-block'; } else { qr.style.display = 'none'; }
+    document.getElementById('rechargeUpiId').textContent = upi.upi_id || '';
+    document.getElementById('rechargeUpiName').textContent = upi.payee_name || '';
+    document.getElementById('rechargeUpiNote').textContent = upi.note || '';
+  }catch(err){ card.style.display = 'none'; }
 }
 async function handleRechargeSubmit(e){
   e.preventDefault();
@@ -874,7 +976,33 @@ async function renderSettingsForms(){
     document.getElementById('ftpBase').value = ftp.base_path || '';
     document.getElementById('ftpUser').value = ftp.username || '';
     document.getElementById('ftpPass').value = ftp.password || '';
+    const upi = s.upi || {};
+    document.getElementById('upiId').value = upi.upi_id || '';
+    document.getElementById('upiName').value = upi.payee_name || '';
+    document.getElementById('upiNote').value = upi.note || '';
+    const qrImg = document.getElementById('upiQrPreview');
+    if(upi.qr_url){ qrImg.src = upi.qr_url; qrImg.style.display = 'inline-block'; uploadedUpiQr = upi.qr_url; document.getElementById('upiQrStatus').textContent = 'QR code uploaded'; }
+    else { qrImg.style.display = 'none'; uploadedUpiQr = ''; }
   }catch(err){ showToast('Error', err.message, 'danger'); }
+}
+let uploadedUpiQr = '';
+async function onUpiQrChosen(input){
+  if(!input.files || !input.files[0]) return;
+  const status = document.getElementById('upiQrStatus');
+  status.textContent = 'Uploading...';
+  try{
+    const up = await apiUpload(input.files[0]);
+    uploadedUpiQr = up.url || up.path;
+    const img = document.getElementById('upiQrPreview');
+    img.src = uploadedUpiQr; img.style.display = 'inline-block';
+    status.textContent = 'QR code uploaded';
+  }catch(err){ status.textContent = 'Upload failed'; showToast('Upload Failed', err.message, 'danger'); }
+}
+async function saveUpiSettings(e){
+  e.preventDefault();
+  const upi = { upi_id:_v('upiId'), payee_name:_v('upiName'), note:_v('upiNote'), qr_url:uploadedUpiQr };
+  try{ await api('/settings', {method:'PUT', body:{upi}}); showToast('Settings Saved', 'UPI / QR payment settings updated.', 'success'); }
+  catch(err){ showToast('Error', err.message, 'danger'); }
 }
 async function saveSmtpSettings(e){
   e.preventDefault();

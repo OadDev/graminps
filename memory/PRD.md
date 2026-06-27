@@ -31,6 +31,15 @@ Super Admin (platform owner), Super Distributor (region), Distributor (zone), Re
 - Live dashboards (role-aware stats + activity feed).
 - Verified: 36/36 backend tests pass; frontend e2e flows verified.
 
+## Implemented (2026-06-27 — fork continuation)
+- Admin restrictions: Super Admin can no longer submit PAN (New/CSF) or wallet recharges — backend returns 403; frontend hides the entire "PAN Services" sidebar section and guards goTo() for pan-new/pan-csf. Admin keeps PAN Status, Recharge Approvals, Settings, Rate Setup.
+- New PAN form: added "Name on Card" and "PAN Card Type (Normal/Minor)" fields (per client screenshot).
+- CSF (Correction) form rebuilt as a full single-page form: PAN Number, applicant identity, parent details, Aadhaar/contact, address, AO-code cascade (State→City→Ward), Number of Documents, and "Change/Correction Requested" checkboxes (Full Name, Father's Name, DOB, Gender, Address) + document uploads.
+- UPI/QR payment settings: Admin Settings has a UPI ID + Payee + Note + QR image upload card; non-admin recharge screen displays the configured UPI ID/QR (`upi` returned to non-admins via GET /api/settings, no SMTP/FTP leakage).
+- build_index.py now auto-restarts the `frontend` supervisor program so freshly built index.html is served (CRA caching gotcha).
+- DB clean for launch (scope a): cleared pan_applications/recharge_requests/transactions/notifications/tickets/audit_logs and reset all wallet balances to ₹0; kept users (33), settings (incl. UPI), and ao_codes (1832). Script: backend/clear_test_data.py.
+- Verified: backend 6/6 iteration-6 tests pass; frontend flows 100% (test_reports/iteration_6.json).
+
 ## Backlog / Next
 - P1: Add data-testid attributes across the HTML for robust automation.
 - P1: OTP expiry (TTL) + login rate-limiting/brute-force lockout.
