@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only re-test of the iteration-5 bug fixes (registration UI, role-section pending + view-details modal w/ Approve/Reject, no Registration Approvals sidebar item, PAN view modal + receipt, certificate print). All 8 UI flows executed end-to-end via Playwright on the public preview URL. Results: 8/8 PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Auth — Pending screen", "issues": ["Static placeholder 'REG-2026-08841' is hardcoded in markup; it is correctly overwritten by handleRegisterSubmit but a brief flash of the placeholder is visible if the API is slow. Consider blanking it on showAuthView('pending')."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration4_bugs.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "regStep(1) correctly walks the current .reg-step's input/select/textarea and calls checkValidity()/reportValidity() before advancing — confirmed it blocks empty Continue at step 1.",
+    "handleRegisterSubmit writes refEl.textContent = r.reference_id which produced SD1007/SD1008 in tests (role-prefixed code), matching the requirement.",
+    "openUserDetail loads /api/users/{id} and renders Approve/Reject for Pending or Block/Delete for Active — verified for both pending SD and active RT10234.",
+    "renderUserTable + loadUserTable correctly include Pending users in the role section (admin sees all statuses) — table HTML contained SD1007 + 'Pending' badge before any refresh.",
+    "Sidebar nav configuration in getNavConfig() omits the registrations item entirely — verified Sidebar text has no 'Registration Approvals'. Note: a stale view/route '#view-registrations' and viewMeta entry still exist in index.html (lines 1727, 2123) but are unreachable via nav. Recommend deleting the dead view/markup to reduce confusion (minor cleanup).",
+    "printCertificate() opens a new window and writes a self-contained HTML certificate; gracefully toasts on popup-block — confirmed no JS error and window.open was invoked.",
+    "openPanDetail populates #panDetailBody with applicant/type/status/AO fields + remark + receipt name; openReceipt opens p.receipt_path in a new tab when set — verified for retailer RT10234's approved app (APP-22056, receipt rcpt.png)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not retested (per request)", "frontend": "100% (8/8)"},
+  "test_credentials": "ADMIN/Bakkar@111, RT10234/Password@123 — both verified working.",
+  "seed_data_creation": "Two Pending Super Distributor self-registrations were created via the UI for this test: SD1007 (TEST 'SD Approve User', email sd_a_<ts>@example.com) — then Approved to Active; SD1008 (TEST 'SD Reject User', email sd_r_<ts>@example.com) — then Rejected. Seeded demo users (SD1001..SD1005, DT2031..DT2036, RT10234..) were not modified.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Registration generates role-prefixed user codes (SD####/DT####/RT#####), not REG-2026-#### — the static REG-2026-08841 in the pending markup is just a placeholder. To get dev_otp call the send-otp endpoint ONCE (calling it twice rotates the OTP and the previous one becomes 'Invalid or expired OTP'). Use #authView-login button[type=submit] (not button[type=submit]) — the page contains the hidden /developer console which also has a submit button. The admin sidebar has NO Registration Approvals item but a stale #view-registrations exists in the DOM (unreachable via nav). Test seed-data SD1007/SD1008 (status Active and Rejected respectively) is left in the DB.",
+  "rca of the issue": "N/A — this was a verification run, not a bug RCA."
+}

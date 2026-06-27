@@ -179,7 +179,8 @@ class SendOtpIn(BaseModel):
 
 
 class RegisterIn(BaseModel):
-    name: str = "New Retailer"
+    name: str = "New User"
+    role: str = "Retailer"
     aadhaar: str
     pan: str
     mobile: str
@@ -232,6 +233,7 @@ class PanReviewIn(BaseModel):
     action: str  # Approved | Rejected | Hold
     remark: Optional[str] = ""
     receipt_name: Optional[str] = ""
+    receipt_path: Optional[str] = ""
 
 
 class RechargeIn(BaseModel):
@@ -295,16 +297,20 @@ async def register(body: RegisterIn):
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
     if await db.users.find_one({"email": body.email.lower()}):
         raise HTTPException(status_code=400, detail="Email already registered")
-    reg_id = f"REG-2026-{await next_seq('reg'):05d}"
-    await db.registrations.insert_one({
-        "id": str(uuid.uuid4()), "reg_id": reg_id, "name": body.name, "role": "Retailer",
-        "mobile": body.mobile, "email": body.email.lower(), "shop_name": body.shop_name,
-        "address": body.address, "aadhaar": body.aadhaar, "pan": body.pan.upper(),
-        "password_hash": hash_password(body.password), "photo_path": body.photo_path or "",
-        "date": today_str(), "status": "Pending", "created_at": now_iso(),
+    role_key = ROLE_LABEL_TO_KEY.get(body.role, "retailer")
+    code = await gen_user_code(role_key)
+    await db.users.insert_one({
+        "id": str(uuid.uuid4()), "user_code": code, "name": body.name or "New User",
+        "email": body.email.lower(), "mobile": body.mobile,
+        "password_hash": hash_password(body.password), "role": role_key, "status": "Pending",
+        "parent_id": None, "ancestors": [], "wallet_balance": 0.0,
+        "shop_name": body.shop_name, "address": body.address,
+        "aadhaar": body.aadhaar, "pan": body.pan.upper(), "photo_path": body.photo_path or "",
+        "self_registered": True, "created_at": now_iso(),
     })
     await db.otps.delete_one({"email": body.email.lower()})
-    return {"reference_id": reg_id, "status": "Pending", "message": "Registration submitted for review."}
+    return {"reference_id": code, "status": "Pending",
+            "message": f"Registration submitted for admin approval. Your Login ID will be {code}."}
 
 
 @api.post("/auth/login")
@@ -412,6 +418,46 @@ async def create_user(body: CreateUserIn, user: dict = Depends(get_current_user)
     await audit(user, "create_user", f"Created {role_key} {code} ({body.name})")
     return {"user": public_user(new_user), "default_password": default_pw,
             "message": f"{ROLE_KEY_TO_LABEL[role_key]} created with ID {code}."}
+
+
+@api.get("/users/{uid}")
+async def get_user_detail(uid: str, user: dict = Depends(get_current_user)):
+    target = await db.users.find_one({"id": uid}, {"_id": 0, "password_hash": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user["role"] != "superadmin" and user["id"] not in target.get("ancestors", []):
+        raise HTTPException(status_code=403, detail="Not allowed")
+    return {
+        "id": target["id"], "user_code": target.get("user_code"), "name": target.get("name"),
+        "role": target.get("role"), "role_label": ROLE_KEY_TO_LABEL.get(target.get("role"), target.get("role")),
+        "status": target.get("status"), "mobile": target.get("mobile"), "email": target.get("email"),
+        "aadhaar": target.get("aadhaar", ""), "pan": target.get("pan", ""),
+        "shop_name": target.get("shop_name", ""), "address": target.get("address", ""),
+        "photo_path": target.get("photo_path", ""), "wallet": fmt_inr(target.get("wallet_balance", 0)),
+        "created_at": target.get("created_at"), "self_registered": target.get("self_registered", False),
+    }
+
+
+@api.post("/users/{uid}/approve")
+async def approve_user(uid: str, user: dict = Depends(require_roles("superadmin", "superdistributor", "distributor"))):
+    target = await db.users.find_one({"id": uid})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    await db.users.update_one({"id": uid}, {"$set": {"status": "Active"}})
+    await notify(uid, "fa-check", "var(--success-bg)", "var(--success)", "Registration Approved",
+                 f"Your {ROLE_KEY_TO_LABEL.get(target['role'], 'account')} ({target['user_code']}) has been approved. You can now log in.")
+    await audit(user, "approve_user", f"{target['user_code']} approved")
+    return {"id": uid, "status": "Active"}
+
+
+@api.post("/users/{uid}/reject")
+async def reject_user(uid: str, user: dict = Depends(require_roles("superadmin", "superdistributor", "distributor"))):
+    target = await db.users.find_one({"id": uid})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    await db.users.update_one({"id": uid}, {"$set": {"status": "Rejected"}})
+    await audit(user, "reject_user", f"{target['user_code']} rejected")
+    return {"id": uid, "status": "Rejected"}
 
 
 @api.patch("/users/{uid}")
@@ -560,6 +606,7 @@ async def review_pan(app_id: str, body: PanReviewIn, user: dict = Depends(requir
     await db.pan_applications.update_one({"app_id": app_id}, {"$set": {
         "status": body.action, "remark": body.remark or "",
         "receipt_name": body.receipt_name if body.action == "Approved" else "",
+        "receipt_path": body.receipt_path if body.action == "Approved" else "",
     }})
     icon = {"Approved": "fa-check", "Rejected": "fa-xmark", "Hold": "fa-circle-pause"}[body.action]
     color = {"Approved": "var(--success)", "Rejected": "var(--danger)", "Hold": "var(--warning)"}[body.action]
