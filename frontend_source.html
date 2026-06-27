@@ -1542,15 +1542,15 @@ h1,h2,h3,h4,h5,h6,.font-display{font-family:'Poppins',sans-serif;}
               <div class="mb-3">
                 <label class="form-label">Amount <span class="required-star">*</span></label>
                 <div class="position-relative">
-                  <input type="number" class="form-control" placeholder="Enter amount" style="padding-left:2.2rem;" required>
+                  <input type="number" class="form-control" data-testid="recharge-amount" placeholder="Enter amount" style="padding-left:2.2rem;" required>
                   <i class="fa-solid fa-indian-rupee-sign position-absolute" style="left:.9rem;top:50%;transform:translateY(-50%);color:var(--ink-soft);font-size:.8rem;"></i>
                 </div>
               </div>
               <div class="mb-3">
                 <label class="form-label">UTR Number <span class="required-star">*</span></label>
-                <input type="text" class="form-control" placeholder="Enter UTR / transaction reference" required>
+                <input type="text" class="form-control" data-testid="recharge-utr" placeholder="Enter UTR / transaction reference" required>
               </div>
-              <button type="submit" class="btn btn-navy btn-touch w-100"><i class="fa-solid fa-paper-plane me-1"></i> Submit Recharge Request</button>
+              <button type="submit" class="btn btn-navy btn-touch w-100" data-testid="recharge-submit-btn"><i class="fa-solid fa-paper-plane me-1"></i> Submit Recharge Request</button>
             </form>
           </div>
         </div>

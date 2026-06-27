@@ -35,3 +35,11 @@ print("written", len(assembled), "bytes")
 print("landingRoot present:", 'id="landingRoot"' in assembled)
 print("authRoot hidden:", '<div id="authRoot" style="display:none">' in assembled)
 print("router present:", 'function route()' in assembled)
+
+# Restart the CRA dev-server so it serves the freshly built index.html
+import subprocess
+try:
+    subprocess.run(["sudo", "supervisorctl", "restart", "frontend"], timeout=60, check=False)
+    print("frontend restarted")
+except Exception as e:
+    print("frontend restart skipped:", e)
