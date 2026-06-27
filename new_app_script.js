@@ -105,7 +105,6 @@ function getNavConfig(role){
     {id:'wallet-history', icon:'fa-clock-rotate-left', label:'Wallet History'}
   ]};
   const rateSetup = role==='superadmin' ? {section:null, items:[
-    {id:'registrations', icon:'fa-user-check', label:'Registration Approvals'},
     {id:'rate-setup', icon:'fa-tags', label:'Rate Setup'},
     {id:'settings', icon:'fa-gear', label:'Settings'}
   ]} : null;
@@ -242,6 +241,13 @@ function renderRegStepDots(){
   document.getElementById('regStepDots').innerHTML = html;
 }
 function regStep(dir){
+  if(dir > 0){
+    const cur = document.querySelector(`.reg-step[data-step="${regCurrentStep}"]`);
+    if(cur){
+      const fields = cur.querySelectorAll('input, select, textarea');
+      for(const f of fields){ if(!f.checkValidity()){ f.reportValidity(); return; } }
+    }
+  }
   const newStep = regCurrentStep + dir;
   if(newStep < 1 || newStep > REG_TOTAL_STEPS) return;
   document.querySelector(`.reg-step[data-step="${regCurrentStep}"]`).style.display = 'none';
@@ -253,8 +259,7 @@ function regStep(dir){
   renderRegStepDots();
 }
 async function sendEmailOtp(){
-  const inputs = document.querySelectorAll('.reg-step[data-step="1"] input');
-  const email = inputs[3] ? inputs[3].value.trim() : '';
+  const email = document.getElementById('regEmail').value.trim();
   if(!email){ showToast('Email Required','Please enter your email first.','warning'); return; }
   try{
     const r = await api('/auth/register/send-otp', {method:'POST', body:{email}});
@@ -265,17 +270,21 @@ async function sendEmailOtp(){
 }
 async function handleRegisterSubmit(e){
   e.preventDefault();
-  const s1 = document.querySelectorAll('.reg-step[data-step="1"] input');
-  const s2 = document.querySelector('.reg-step[data-step="2"]');
-  const s2inputs = s2.querySelectorAll('input'); const s2text = s2.querySelector('textarea');
+  const password = document.getElementById('regPassword').value;
+  if(password !== document.getElementById('regConfirm').value){ showToast('Password Mismatch','Passwords do not match.','danger'); return; }
   const body = {
-    name: (s2inputs[2] && s2inputs[2].value) ? s2inputs[2].value : 'New Retailer',
-    aadhaar: s1[0].value, pan: s1[1].value, mobile: s1[2].value, email: s1[3].value.trim(),
-    otp: s1[4] ? s1[4].value : '', password: s2inputs[0].value,
-    shop_name: s2inputs[2] ? s2inputs[2].value : '', address: s2text ? s2text.value : '',
+    name: document.getElementById('regName').value.trim(),
+    role: document.getElementById('regRole').value,
+    aadhaar: document.getElementById('regAadhaar').value.trim(),
+    pan: document.getElementById('regPan').value.trim(),
+    mobile: document.getElementById('regMobile').value.trim(),
+    email: document.getElementById('regEmail').value.trim(),
+    otp: document.getElementById('regOtp').value.trim(),
+    password,
+    shop_name: document.getElementById('regShop').value.trim(),
+    address: document.getElementById('regAddress').value.trim(),
     photo_path: regPhotoPath,
   };
-  if(s2inputs[0].value !== s2inputs[1].value){ showToast('Password Mismatch','Passwords do not match.','danger'); return; }
   try{
     const r = await api('/auth/register', {method:'POST', body});
     const refEl = document.querySelector('#authView-pending strong');
@@ -357,6 +366,7 @@ function initDashboardCharts(){
 
 /* ---------------- USER MANAGEMENT ---------------- */
 let createUserTargetRole = 'Retailer';
+let currentUserTable = { containerId: '', roleKey: '' };
 function openCreateUserModal(targetRole){
   createUserTargetRole = targetRole;
   document.getElementById('createUserModalTitle').textContent = 'Add ' + targetRole;
@@ -378,6 +388,7 @@ async function handleCreateUserSubmit(e){
   }catch(err){ showToast('Error', err.message, 'danger'); }
 }
 async function loadUserTable(containerId, roleKey){
+  currentUserTable = { containerId, roleKey };
   try{ const data = await api('/users?role='+roleKey); renderUserTable(containerId, data, roleKey); }
   catch(err){ showToast('Error', err.message, 'danger'); }
 }
@@ -386,9 +397,13 @@ function renderUserTable(containerId, data, roleKey){
   if(!el) return;
   const isAdmin = APP.role === 'superadmin';
   function actionsHtml(u){
-    let btns = `<button class="row-action-btn" title="View" onclick="showToast('View User','Viewing profile for ${u.name}','info')"><i class="fa-regular fa-eye"></i></button>
-      <button class="row-action-btn" title="Edit" onclick="editUser('${u.id}','${containerId}','${roleKey}','${u.name}')"><i class="fa-regular fa-pen-to-square"></i></button>`;
-    btns += `<button class="row-action-btn" title="${u.status==='Blocked'?'Unblock':'Block'}" onclick="toggleUserBlock('${u.id}','${containerId}','${roleKey}')"><i class="fa-solid fa-${u.status==='Blocked'?'lock-open':'lock'}"></i></button>`;
+    let btns = `<button class="row-action-btn" title="View Details" onclick="openUserDetail('${u.id}')"><i class="fa-regular fa-eye"></i></button>`;
+    if(u.status === 'Pending'){
+      btns += `<button class="row-action-btn" title="Approve" onclick="approveUser('${u.id}','${containerId}','${roleKey}')"><i class="fa-solid fa-check"></i></button>`;
+      btns += `<button class="row-action-btn" title="Reject" onclick="rejectUser('${u.id}','${containerId}','${roleKey}')"><i class="fa-solid fa-xmark"></i></button>`;
+    } else {
+      btns += `<button class="row-action-btn" title="${u.status==='Blocked'?'Unblock':'Block'}" onclick="toggleUserBlock('${u.id}','${containerId}','${roleKey}')"><i class="fa-solid fa-${u.status==='Blocked'?'lock-open':'lock'}"></i></button>`;
+    }
     if(isAdmin) btns += `<button class="row-action-btn" title="Delete" onclick="deleteUser('${u.id}','${u.name}','${containerId}','${roleKey}')"><i class="fa-regular fa-trash-can"></i></button>`;
     return btns;
   }
@@ -418,6 +433,43 @@ async function deleteUser(uid, name, containerId, roleKey){
   if(!confirm(`Delete ${name}? This cannot be undone.`)) return;
   try{ await api('/users/'+uid, {method:'DELETE'}); showToast('Deleted', `${name} removed.`, 'danger'); loadUserTable(containerId, roleKey); }
   catch(err){ showToast('Error', err.message, 'danger'); }
+}
+async function approveUser(uid, containerId, roleKey){
+  try{ await api('/users/'+uid+'/approve', {method:'POST'}); showToast('Approved', 'Account activated. The user can now log in.', 'success'); loadUserTable(containerId, roleKey); }
+  catch(err){ showToast('Error', err.message, 'danger'); }
+}
+async function rejectUser(uid, containerId, roleKey){
+  if(!confirm('Reject this registration?')) return;
+  try{ await api('/users/'+uid+'/reject', {method:'POST'}); showToast('Rejected', 'Registration rejected.', 'danger'); loadUserTable(containerId, roleKey); }
+  catch(err){ showToast('Error', err.message, 'danger'); }
+}
+async function openUserDetail(uid){
+  try{
+    const u = await api('/users/'+uid);
+    document.getElementById('userDetailTitle').textContent = u.name + (u.user_code ? ' \u2014 ' + u.user_code : '');
+    const rows = [
+      ['Login ID', u.user_code||'-'], ['Role', u.role_label||u.role], ['Status', u.status],
+      ['Mobile', u.mobile||'-'], ['Email', u.email||'-'], ['Aadhaar', u.aadhaar||'-'],
+      ['PAN', u.pan||'-'], ['Shop Name', u.shop_name||'-'], ['Wallet', u.wallet||'-'], ['Address', u.address||'-'],
+    ];
+    document.getElementById('userDetailBody').innerHTML = rows.map(([k,v]) =>
+      `<div class="col-6"><div class="text-soft" style="font-size:.72rem;">${k}</div><div class="fw-semibold" style="font-size:.85rem;word-break:break-word;">${v}</div></div>`).join('');
+    document.getElementById('userDetailActions').innerHTML = renderUserDetailActions(u);
+    new bootstrap.Modal(document.getElementById('userDetailModal')).show();
+  }catch(err){ showToast('Error', err.message, 'danger'); }
+}
+function hideUserDetail(){ bootstrap.Modal.getInstance(document.getElementById('userDetailModal'))?.hide(); }
+function renderUserDetailActions(u){
+  const c = currentUserTable.containerId, r = currentUserTable.roleKey;
+  let h = '';
+  if(u.status === 'Pending'){
+    h += `<button class="btn btn-navy btn-sm" onclick="approveUser('${u.id}','${c}','${r}');hideUserDetail()"><i class="fa-solid fa-check me-1"></i>Approve</button>`;
+    h += `<button class="btn btn-soft btn-sm text-danger" onclick="rejectUser('${u.id}','${c}','${r}');hideUserDetail()"><i class="fa-solid fa-xmark me-1"></i>Reject</button>`;
+  } else {
+    h += `<button class="btn btn-soft btn-sm" onclick="toggleUserBlock('${u.id}','${c}','${r}');hideUserDetail()"><i class="fa-solid fa-${u.status==='Blocked'?'lock-open':'lock'} me-1"></i>${u.status==='Blocked'?'Unblock':'Block'}</button>`;
+  }
+  if(APP.role === 'superadmin') h += `<button class="btn btn-soft btn-sm text-danger" onclick="deleteUser('${u.id}','${u.name}','${c}','${r}');hideUserDetail()"><i class="fa-regular fa-trash-can me-1"></i>Delete</button>`;
+  return h;
 }
 async function editUser(uid, containerId, roleKey, currentName){
   const name = prompt('Edit name', currentName);
@@ -608,15 +660,15 @@ async function renderPanStatusTable(filter=''){
   const data = lastPanData;
   const isAdmin = APP.role === 'superadmin';
   function actionsHtml(p){
-    let btns = `<button class="row-action-btn" title="View" onclick="showToast('View Application','Viewing ${p.app_id} for ${p.applicant_name}','info')"><i class="fa-regular fa-eye"></i></button>`;
+    let btns = `<button class="row-action-btn" title="View Details" onclick="openPanDetail('${p.app_id}')"><i class="fa-regular fa-eye"></i></button>`;
     if(isAdmin){
       btns += `<button class="row-action-btn" title="Delete" onclick="deletePanApplication('${p.app_id}')"><i class="fa-regular fa-trash-can"></i></button>`;
       if(p.status==='Processed' || p.status==='Hold') btns += `<button class="row-action-btn" title="Review" onclick="openPanReviewModal('${p.app_id}')"><i class="fa-solid fa-stamp"></i></button>`;
-      if(p.receipt_name) btns += `<button class="row-action-btn" title="Download Receipt" onclick="showToast('Receipt','${p.receipt_name}','info')"><i class="fa-solid fa-download"></i></button>`;
+      if(p.receipt_name) btns += `<button class="row-action-btn" title="Download Receipt" onclick="openReceipt('${p.app_id}')"><i class="fa-solid fa-download"></i></button>`;
     } else {
       if(p.status==='Hold') btns += `<button class="row-action-btn" title="Edit" onclick="goTo('pan-hold-new')"><i class="fa-regular fa-pen-to-square"></i></button>`;
       if(p.remark) btns += `<button class="row-action-btn" title="View Remark" onclick="viewPanRemark('${p.app_id}')"><i class="fa-regular fa-message"></i></button>`;
-      if(p.receipt_name) btns += `<button class="row-action-btn" title="Download Receipt" onclick="showToast('Receipt','${p.receipt_name}','info')"><i class="fa-solid fa-download"></i></button>`;
+      if(p.receipt_name) btns += `<button class="row-action-btn" title="Download Receipt" onclick="openReceipt('${p.app_id}')"><i class="fa-solid fa-download"></i></button>`;
     }
     return btns;
   }
@@ -636,6 +688,31 @@ async function renderPanStatusTable(filter=''){
   host.innerHTML = (data.length ? desktop + mobile : `<div class="text-soft text-center py-4" style="font-size:.88rem;">No applications found.</div>`);
 }
 function filterPanStatus(val){ renderPanStatusTable(val); }
+function openPanDetail(appId){
+  const p = lastPanData.find(x=>x.app_id===appId); if(!p) return;
+  document.getElementById('panDetailTitle').textContent = p.app_id;
+  const fd = p.form_data || {};
+  const rows = [
+    ['Applicant Name', p.applicant_name], ['PAN Type', p.type], ['Status', p.status], ['Date', p.date],
+    ['Applicant Type', p.applicant_type||'-'], ['State', fd.state||'-'], ['City', fd.city||'-'],
+    ['Area Code', fd.area_code||'-'], ['AO Type', fd.ao_type||'-'], ['Range Code', fd.range_code||'-'],
+    ['AO Number', fd.ao_number||'-'], ['Remark', p.remark||'-'], ['Receipt', p.receipt_name||'-'],
+  ];
+  document.getElementById('panDetailBody').innerHTML = rows.map(([k,v]) =>
+    `<div class="col-6"><div class="text-soft" style="font-size:.72rem;">${k}</div><div class="fw-semibold" style="font-size:.85rem;word-break:break-word;">${v}</div></div>`).join('');
+  const docs = fd.documents || {};
+  const docKeys = Object.keys(docs);
+  if(docKeys.length){
+    document.getElementById('panDetailBody').innerHTML += `<div class="col-12 mt-2"><div class="text-soft" style="font-size:.72rem;">Uploaded Documents</div>` +
+      docKeys.map(k=>`<a href="${docs[k]}" target="_blank" class="badge-pill bd-submitted me-1" style="text-decoration:none;"><i class="fa-solid fa-paperclip me-1"></i>${k}</a>`).join('') + `</div>`;
+  }
+  new bootstrap.Modal(document.getElementById('panDetailModal')).show();
+}
+function openReceipt(appId){
+  const p = lastPanData.find(x=>x.app_id===appId); if(!p) return;
+  if(p.receipt_path){ window.open(p.receipt_path, '_blank'); }
+  else { showToast('Receipt', p.receipt_name ? ('Receipt on file: ' + p.receipt_name) : 'No receipt available.', 'info'); }
+}
 async function deletePanApplication(appId){
   if(!confirm(`Delete ${appId}?`)) return;
   try{ await api('/pan-applications/'+appId, {method:'DELETE'}); showToast('Application Deleted', `${appId} has been removed.`, 'danger'); renderPanStatusTable(); }
@@ -678,9 +755,10 @@ async function submitPanReview(){
   if(panReviewSelectedAction === 'Approved' && !panReviewReceiptFile){ showToast('Receipt Required', 'Please upload a receipt before accepting.', 'danger'); return; }
   if((panReviewSelectedAction === 'Rejected' || panReviewSelectedAction === 'Hold') && !remark){ showToast('Remark Required', 'Please add a remark.', 'danger'); return; }
   let receipt_name = '';
+  let receipt_path = '';
   try{
-    if(panReviewSelectedAction === 'Approved' && panReviewReceiptFile){ const up = await apiUpload(panReviewReceiptFile); receipt_name = up.filename; }
-    await api('/pan-applications/'+appId+'/review', {method:'POST', body:{action:panReviewSelectedAction, remark, receipt_name}});
+    if(panReviewSelectedAction === 'Approved' && panReviewReceiptFile){ const up = await apiUpload(panReviewReceiptFile); receipt_name = up.filename; receipt_path = up.path; }
+    await api('/pan-applications/'+appId+'/review', {method:'POST', body:{action:panReviewSelectedAction, remark, receipt_name, receipt_path}});
     bootstrap.Modal.getInstance(document.getElementById('panReviewModal'))?.hide();
     const msg = {Approved:`${appId} accepted. Submitter notified.`, Rejected:`${appId} rejected. Submitter notified.`, Hold:`${appId} on hold. Submitter can resubmit.`};
     showToast('Application Updated', msg[panReviewSelectedAction], panReviewSelectedAction==='Approved'?'success':panReviewSelectedAction==='Rejected'?'danger':'warning');
@@ -892,6 +970,23 @@ function renderPersonalCertificate(){
   document.getElementById('certHolderName').textContent = APP.user.name;
   document.getElementById('certHolderRole').textContent = APP.user.role_label + ' Certificate';
   document.getElementById('certHolderId').textContent = 'ID: ' + APP.user.user_code;
+}
+function printCertificate(){
+  const card = document.getElementById('certCard');
+  if(!card) return;
+  const w = window.open('', '_blank', 'width=720,height=520');
+  if(!w){ showToast('Popup Blocked', 'Allow popups to download the certificate.', 'warning'); return; }
+  w.document.write(`<html><head><title>Gramin PAN Seva Certificate</title>
+    <style>body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#0E2A40;font-family:Arial,sans-serif;}
+    .c{width:520px;text-align:center;color:#fff;background:linear-gradient(160deg,#163C5A,#1F5A85);border:3px solid #D4A02A;border-radius:18px;padding:48px 32px;}
+    .seal{width:64px;height:64px;border-radius:50%;background:#D4A02A;color:#163C5A;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 18px;font-weight:bold;}
+    h1{font-size:22px;margin:6px 0;} .r{opacity:.85;font-size:14px;} .id{opacity:.7;font-size:13px;margin-top:6px;}
+    .lbl{text-transform:uppercase;letter-spacing:2px;font-size:11px;opacity:.7;}</style></head>
+    <body><div class="c"><div class="seal">&#9733;</div><div class="lbl">Gramin PAN Seva</div>
+    <h1>${APP.user.name}</h1><div class="r">${APP.user.role_label} Certificate</div>
+    <div class="id">ID: ${APP.user.user_code}</div></div>
+    <script>window.onload=function(){setTimeout(function(){window.print();},300);}<\/script></body></html>`);
+  w.document.close();
 }
 function renderPersonalProfile(){
   if(!APP.user) return;
