@@ -261,6 +261,7 @@ class SettingsIn(BaseModel):
     ftp: Optional[dict] = None
     pricing: Optional[dict] = None
     toggles: Optional[dict] = None
+    upi: Optional[dict] = None
 
 
 # ============================ AUTH ============================
@@ -569,6 +570,8 @@ async def list_pan(status: Optional[str] = None, user: dict = Depends(get_curren
 
 @api.post("/pan-applications")
 async def create_pan(body: PanCreateIn, user: dict = Depends(get_current_user)):
+    if user["role"] == "superadmin":
+        raise HTTPException(status_code=403, detail="Administrators review applications and cannot submit them.")
     settings = await db.settings.find_one({"id": "global"}, {"_id": 0})
     price = float(settings.get("pricing", {}).get(body.type, 107.0))
     bal = float(user.get("wallet_balance", 0))
@@ -647,6 +650,8 @@ async def wallet_transactions(filter: Optional[str] = None, user: dict = Depends
 
 @api.post("/wallet/recharge")
 async def submit_recharge(body: RechargeIn, user: dict = Depends(get_current_user)):
+    if user["role"] == "superadmin":
+        raise HTTPException(status_code=403, detail="Administrators approve recharges and cannot submit them.")
     if body.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be greater than zero")
     if not body.utr.strip():
@@ -754,7 +759,7 @@ async def list_notifications(user: dict = Depends(get_current_user)):
 async def get_settings(user: dict = Depends(get_current_user)):
     s = await db.settings.find_one({"id": "global"}, {"_id": 0})
     if user["role"] != "superadmin":
-        return {"pricing": s.get("pricing", {})}
+        return {"pricing": s.get("pricing", {}), "upi": s.get("upi", {})}
     return s
 
 
