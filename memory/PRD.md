@@ -40,6 +40,18 @@ Super Admin (platform owner), Super Distributor (region), Distributor (zone), Re
 - DB clean for launch (scope a): cleared pan_applications/recharge_requests/transactions/notifications/tickets/audit_logs and reset all wallet balances to ₹0; kept users (33), settings (incl. UPI), and ao_codes (1832). Script: backend/clear_test_data.py.
 - Verified: backend 6/6 iteration-6 tests pass; frontend flows 100% (test_reports/iteration_6.json).
 
+## Implemented (2026-06-29 — iteration 7)
+- Name autofill: typing 'Name as per Aadhaar' auto-splits into First/Middle/Last (New PAN + CSF) and mirrors the Identity 'Name as per Aadhaar' field.
+- Full official dropdowns: Source of Income (6), Proof of Identity (23), Proof of Address (33), Proof of DOB (14) — populated via DOC_LISTS/populateDocLists.
+- Single 'Form + Documents PDF' upload (max 2MB, .pdf) replaces the 4 separate upload tiles in both forms, with the 200dpi note.
+- Dynamic wallet balance on New PAN review (real balance + role rate + remaining), no more hardcoded numbers.
+- Admin 'Add Balance' (sidebar → Wallet Management): pick role → user → amount; instantly credits wallet (apply_wallet) and inserts an Approved recharge_requests row (utr='ADMIN CREDIT') so it shows in the user's recharge history. Endpoint: POST /api/wallet/admin-credit.
+- Acknowledgement Number field in the PAN Accept review flow (stored on pan_applications.acknowledgement_number).
+- Per-role service rates: Rate Setup is now a matrix (New PAN/CSF PAN × Super Distributor/Distributor/Retailer). pricing stored as nested dict; create_pan charges submitter's role rate via resolve_price() (fallback New 107 / CSF 85).
+- Dynamic profile: loads real user data via /auth/me, edit name/mobile/email/shop/address + photo upload. Endpoint: PUT /api/profile (public_user now returns photo_path).
+- Admin PAN detail modal shows ALL submitted fields with per-row copy icons + 'Copy All Details'.
+- Verified: backend 6/6 (iteration_7.json), frontend 100% on all 10 flows, zero bugs.
+
 ## Backlog / Next
 - P1: Add data-testid attributes across the HTML for robust automation.
 - P1: OTP expiry (TTL) + login rate-limiting/brute-force lockout.
