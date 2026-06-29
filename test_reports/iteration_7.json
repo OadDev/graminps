@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration-7 (per-role pricing, admin Add Balance, name autofill, single PDF upload, dynamic balance, acknowledgement number, dynamic profile, admin copy-all PAN detail) — Backend 6/6 pytest passed; Frontend all required flows verified end-to-end.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration7.py",
+    "/app/test_reports/pytest/iter7.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Backend resolve_price + DEFAULT_PRICE correctly persists per-role pricing nested object via PUT /api/settings; verified retailer rate of ₹110 is applied (test charged exactly ₹110).",
+    "POST /api/wallet/admin-credit correctly credits wallet via apply_wallet and inserts a recharge_requests row with utr='ADMIN CREDIT', status='Approved' — visible in retailer's recharge history.",
+    "PUT /api/profile updates name/mobile/email/shop_name/address/photo_path and returns updated public_user (photo_path included). Verified persistence via /api/auth/me.",
+    "PAN review with acknowledgement_number stores it on pan_applications.acknowledgement_number; verified by GET /api/pan-applications returning ACK-998877. Backend still requires receipt_name for Approved action (frontend already provides both).",
+    "Admin POST /api/pan-applications still returns 403 with the expected message.",
+    "Frontend autoSplitName correctly mirrors First/Middle/Last names from 'Name as per Aadhaar' in both New PAN (data-testid np-name-aadhaar -> np-first/middle/last + np-name-aadhaar-2 mirror) and CSF (csf-name-aadhaar -> csf-first/middle/last). 3-word ('Bikash Kumar Sharma') and CSF 3-word ('Suresh Ramesh Patel') tests both produced correct splits.",
+    "Source of Income dropdown has all 6 official options; populateDocLists fills Identity (23 opts), Address (33 opts), DOB (14 opts) selects — long official lists confirmed.",
+    "Single 'Form + Documents PDF' upload tile present (data-doc='form_documents', accept=.pdf, data-maxmb='2') in both forms; the 4 old tiles (identity/address/photo/signature) are GONE (count=0). Note: doclist_count=7 in CSF view because 4 official document-type select dropdowns (income/identity/address/dob) still exist as part of the application metadata — these are SELECTS not uploads, behaviour expected.",
+    "Dynamic Review summary: npWalletBal=₹2,240, npServiceCharge=−₹110 (retailer role-rate), npRemainBal=₹2,130 — NOT hardcoded ₹3,640/₹107.",
+    "Admin 'Add Balance' view (addbal-role, addbal-user, addbal-amount, addbal-submit-btn) all wired. Selecting Role=retailer populates user dropdown with retailers (e.g. RT10252, RT10251, RT10249, RT10248, RT10234).",
+    "'Rate Setup' (admin) renders a matrix with column headers Service / Super Distributor (₹) / Distributor (₹) / Retailer (₹) and rows New PAN / CSF PAN — exactly 6 .rate-input inputs and save-rates-btn present.",
+    "PAN Review modal Accept tab exposes panReviewAckInput (data-testid='pan-review-ack-input'); frontend submitPanReview validates 'Acknowledgement Required' when empty (code inspected).",
+    "openPanDetail modal renders all submitted fields each with a per-row copy icon and a top 'Copy All Details' button (data-testid='pan-copy-all-btn'). Screenshot confirms ACK-998877 and receipt name visible.",
+    "Profile view loads dynamic data (name='Bikash Updated', mobile='9876543210', email/shop pre-filled) via /api/auth/me on every render. Update flow persists and updates header name.",
+    "Operational: CRA dev-server caching is no longer an issue this run — current frontend already served latest build."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration7.py"],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% on all 10 required iter-7 flows"},
+  "test_credentials": "ADMIN/Bakkar@111, RT10234/Password@123, DT2031/Password@123, SD1001/Password@123 — all verified.",
+  "seed_data_creation": "Created APP-22063/22064 retailer PAN apps (charged ₹110 each), credited RT10234 wallet via admin-credit (+₹250 then +₹500 then +₹300). One application reviewed Approved with ACK-998877 / test.pdf receipt. Per-role pricing persisted (New PAN: 100/105/110, CSF PAN: 80/82/90 for SD/Dist/Ret).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login URL is /login (#loginUserId, #loginPassword, submit on #authView-login). Root '/' is landing only. To switch users, clear localStorage.gps_token then reload. New PAN review summary IDs: npWalletBal, npServiceCharge, npRemainBal. PAN review ack input id=panReviewAckInput (data-testid='pan-review-ack-input'). Backend review_pan still requires receipt_name when action='Approved' (HTTP 400 if missing) — acknowledgement_number is optional at the backend but enforced by frontend.",
+  "rca of the issue": "No bugs found this iteration. Only operational gotcha was that hitting '/' shows landing — must visit /login to expose the login form."
+}

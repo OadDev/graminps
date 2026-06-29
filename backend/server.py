@@ -169,8 +169,23 @@ def public_user(u: dict) -> dict:
         "mobile": u.get("mobile"), "role": u["role"], "role_label": ROLE_KEY_TO_LABEL.get(u["role"], u["role"]),
         "status": u.get("status"), "wallet_balance": u.get("wallet_balance", 0),
         "wallet": fmt_inr(u.get("wallet_balance", 0)), "shop_name": u.get("shop_name"),
-        "address": u.get("address"),
+        "address": u.get("address"), "photo_path": u.get("photo_path", ""),
     }
+
+
+DEFAULT_PRICE = {"New PAN": 107.0, "CSF PAN": 85.0}
+
+
+def resolve_price(pricing: dict, ptype: str, role: str) -> float:
+    p = (pricing or {}).get(ptype)
+    if isinstance(p, dict):
+        v = p.get(role)
+        if v is None:
+            v = p.get("retailer")
+        return float(v) if v is not None else DEFAULT_PRICE.get(ptype, 107.0)
+    if p is None:
+        return DEFAULT_PRICE.get(ptype, 107.0)
+    return float(p)
 
 
 # ============================ MODELS ============================
@@ -234,6 +249,21 @@ class PanReviewIn(BaseModel):
     remark: Optional[str] = ""
     receipt_name: Optional[str] = ""
     receipt_path: Optional[str] = ""
+    acknowledgement_number: Optional[str] = ""
+
+
+class AdminCreditIn(BaseModel):
+    user_id: str
+    amount: float
+
+
+class ProfileIn(BaseModel):
+    name: Optional[str] = None
+    mobile: Optional[str] = None
+    email: Optional[str] = None
+    shop_name: Optional[str] = None
+    address: Optional[str] = None
+    photo_path: Optional[str] = None
 
 
 class RechargeIn(BaseModel):
@@ -337,6 +367,16 @@ async def me(user: dict = Depends(get_current_user)):
 @api.post("/auth/logout")
 async def logout(user: dict = Depends(get_current_user)):
     return {"ok": True}
+
+
+@api.put("/profile")
+async def update_profile(body: ProfileIn, user: dict = Depends(get_current_user)):
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if updates:
+        await db.users.update_one({"id": user["id"]}, {"$set": updates})
+    fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0})
+    await audit(user, "update_profile", ", ".join(updates.keys()))
+    return public_user(fresh)
 
 
 # ============================ DEVELOPER CONSOLE ============================
@@ -573,7 +613,7 @@ async def create_pan(body: PanCreateIn, user: dict = Depends(get_current_user)):
     if user["role"] == "superadmin":
         raise HTTPException(status_code=403, detail="Administrators review applications and cannot submit them.")
     settings = await db.settings.find_one({"id": "global"}, {"_id": 0})
-    price = float(settings.get("pricing", {}).get(body.type, 107.0))
+    price = resolve_price(settings.get("pricing", {}), body.type, user["role"])
     bal = float(user.get("wallet_balance", 0))
     if bal < price:
         raise HTTPException(status_code=400, detail=f"Insufficient wallet balance. Need {fmt_inr(price)}, have {fmt_inr(bal)}.")
@@ -610,6 +650,7 @@ async def review_pan(app_id: str, body: PanReviewIn, user: dict = Depends(requir
         "status": body.action, "remark": body.remark or "",
         "receipt_name": body.receipt_name if body.action == "Approved" else "",
         "receipt_path": body.receipt_path if body.action == "Approved" else "",
+        "acknowledgement_number": body.acknowledgement_number if body.action == "Approved" else "",
     }})
     icon = {"Approved": "fa-check", "Rejected": "fa-xmark", "Hold": "fa-circle-pause"}[body.action]
     color = {"Approved": "var(--success)", "Rejected": "var(--danger)", "Hold": "var(--warning)"}[body.action]
@@ -630,6 +671,25 @@ async def delete_pan(app_id: str, user: dict = Depends(require_roles("superadmin
 
 
 # ============================ WALLET ============================
+@api.post("/wallet/admin-credit")
+async def admin_credit(body: AdminCreditIn, user: dict = Depends(require_roles("superadmin"))):
+    if body.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than zero")
+    target = await db.users.find_one({"id": body.user_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    bal = await apply_wallet(body.user_id, float(body.amount), 0, "Balance added by admin")
+    await db.recharge_requests.insert_one({
+        "id": str(uuid.uuid4()), "user_id": body.user_id, "submitted_by_name": target.get("name"),
+        "user_code": target.get("user_code"), "date": today_str(), "amount": float(body.amount),
+        "utr": "ADMIN CREDIT", "status": "Approved", "created_at": now_iso(),
+    })
+    await notify(body.user_id, "fa-wallet", "var(--success-bg)", "var(--success)", "Balance Added",
+                 f"{fmt_inr(body.amount)} was added to your wallet by admin.")
+    await audit(user, "admin_credit", f"{fmt_inr(body.amount)} to {target.get('user_code')}")
+    return {"message": f"{fmt_inr(body.amount)} credited to {target.get('user_code')}.", "wallet_balance": fmt_inr(bal)}
+
+
 @api.get("/wallet/transactions")
 async def wallet_transactions(filter: Optional[str] = None, user: dict = Depends(get_current_user)):
     rows = await db.transactions.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(1000)

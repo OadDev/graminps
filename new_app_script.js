@@ -35,6 +35,8 @@ let regPhotoPath = '';
 async function onDocChosen(input){
   if(!input.files || !input.files[0]) return;
   const file = input.files[0];
+  const maxmb = parseFloat(input.dataset.maxmb || '0');
+  if(maxmb && file.size > maxmb * 1024 * 1024){ showToast('File Too Large', `File must be under ${maxmb} MB.`, 'danger'); input.value=''; return; }
   const key = input.dataset.doc;
   const box = input.closest('.upload-box');
   const status = box ? box.querySelector('.upload-status') : null;
@@ -102,8 +104,9 @@ function getNavConfig(role){
   const panStatus = {section:null, items:[{id:'pan-status', icon:'fa-list-check', label:'PAN Status'}]};
   const wallet = {section:'Wallet Management', items:[
     {id:'wallet-recharge', icon:'fa-wallet', label: role==='superadmin' ? 'Recharge Approvals' : 'Recharge Request'},
+    role==='superadmin' ? {id:'add-balance', icon:'fa-plus', label:'Add Balance'} : null,
     {id:'wallet-history', icon:'fa-clock-rotate-left', label:'Wallet History'}
-  ]};
+  ].filter(Boolean)};
   const rateSetup = role==='superadmin' ? {section:null, items:[
     {id:'rate-setup', icon:'fa-tags', label:'Rate Setup'},
     {id:'settings', icon:'fa-gear', label:'Settings'}
@@ -157,6 +160,7 @@ const VIEW_TITLES = {
   'pan-hold-new':['New Hold PAN','Resubmit held new PAN applications'], 'pan-hold-csf':['CSF Hold PAN','Resubmit held CSF applications'],
   'pan-status':['PAN Status','Track all PAN applications'], 'wallet-recharge':['Recharge Request','Add funds to your wallet'],
   'wallet-recharge-admin':['Recharge Approvals','Verify UTR and amount before accepting'], 'wallet-history':['Wallet History','All wallet transactions'],
+  'add-balance':['Add Balance','Credit a user wallet instantly'],
   'rate-setup':['Rate Setup','Configure service charges'], registrations:['Registration Approvals','Review and approve new account registrations'],
   settings:['Settings','SMTP, FTP and system configuration'],
   'support':['Support Center','Raise and track tickets'], 'certificates':['Certificates','Your achievement certificates'],
@@ -314,6 +318,7 @@ function renderViewData(viewId){
   if(viewId === 'notifications') renderNotificationsList();
   if(viewId === 'registrations') renderRegistrationsTable();
   if(viewId === 'rate-setup') renderRateSetup();
+  if(viewId === 'add-balance') renderAddBalance();
   if(viewId === 'settings') renderSettingsForms();
   if(viewId === 'certificates') renderPersonalCertificate();
   if(viewId === 'profile') renderPersonalProfile();
@@ -531,6 +536,86 @@ async function reviewRegistration(decision){
 }
 
 /* ---------------- PAN FORMS ---------------- */
+const DOC_LISTS = {
+  income: ['Salary','Income from Business / Profession','Income from House property','Capital Gains','Income from Other sources','No income'],
+  identity: [
+    'Certificate of Identity signed by a Gazetted Officer',
+    'Certificate of Identity signed by a Member of Legislative Assembly',
+    'Certificate of Identity signed by a Member of Parliament',
+    'Certificate of Identity signed by a Municipal Councillor',
+    'Driving License','Passport','Central Government Health Scheme Card',
+    'Transgender Identity Card / Certificate issued under the Transgender Persons (Protection of Rights) Act 2019 having photograph of the applicant',
+    'Ex-Servicemen Contributory Health Scheme photo card',
+    'Bank certificate in Original on letter head from the branch (along with name and stamp of the issuing officer) containing duly attested photograph and bank account number of the applicant',
+    'Photo identity card issued by the Central Government or State Government or Public Sector Undertaking.',
+    'Pensioner Card having photograph of the applicant',
+    "Elector's photo identity card",
+    'Ration card having photograph of the applicant',
+    'AADHAAR Card issued by the Unique Identification Authority of India',
+    'Certificate of Registration issued by Registrar of Firms','Partnership Deed','Agreement',
+    'Certificate of Registration Number issued by any other Competent Authority',
+    'Certificate of Registration Number issued by Charity Commissioner',
+    'Certificate of Registration Number issued by Registrar of Co-op Society',
+    'Any document originating from any Central or State Govt. Department establishing identity of such person.'
+  ],
+  address: [
+    'Latest property tax assessment order',
+    'Depository account statement (Not more than 3 months old from the date of application)',
+    'Credit card statement (Not more than 3 months old from the date of application)',
+    'Bank account statement/passbook (Not more than 3 months old from the date of application)',
+    'Landline Telephone Bill (Not more than 3 months old from the date of application)',
+    'Certificate of Address signed by a Municipal Councillor','Driving License','Passport',
+    'Property Registration Document',
+    'Electricity Bill (Not more than 3 months old from the date of application)',
+    'Bank Account Statement in the country of residence (Not more than 3 months old from the date of application)',
+    'NRE bank account statement (Not more than 3 months old from the date of application)',
+    'Employer certificate in original',"Elector's photo identity card",
+    'Certificate of Address signed by a Gazetted Officer','Passport of the spouse',
+    'Post office passbook having address of the applicant',
+    'Domicile certificate issued by the Government',
+    'Allotment letter of accommodation issued by Central or State Government of not more than three years old',
+    'Certificate of Address signed by a Member of Legislative Assembly',
+    'Certificate of Address signed by a Member of Parliament',
+    'AADHAAR Card issued by the Unique Identification Authority of India',
+    'Consumer gas connection card or book or piped gas bill(Not more than 3 months old from date of application)',
+    'Water Bill (Not more than 3 months old from the date of application)',
+    'Broadband Connection Bill (Not more than 3 months old from the date of application)',
+    'Certificate of Registration issued by Registrar of Firms','Partnership Deed','Agreement',
+    'Certificate of Registration Number issued by any other Competent Authority',
+    'Certificate of Registration Number issued by Charity Commissioner',
+    'Certificate of Registration Number issued by Registrar of Co-op Society',
+    'Any document originating from any Central or State Govt. Department establishing identity of such person.'
+  ],
+  dob: [
+    'Birth Certificate issued by the Municipal Authority or any office authorized to issue Birth and Death Certificate by the Registrar of Birth and Death of the Indian Consulate',
+    'Pension payment order','Marriage certificate issued by Registrar of Marriages',
+    'Matriculation certificate','Driving License','Domicile certificate issued by the Government',
+    'Affidavit sworn before a magistrate stating the date of birth',
+    'Matriculation Marksheet of recognised board',"Elector's photo identity card",
+    'Photo identity card issued by the Central Government or State Government or Public Sector Undertaking.',
+    'Central Government Health Scheme Card','Ex-Servicemen Contributory Health Scheme photo card','Passport'
+  ]
+};
+function populateDocLists(){
+  document.querySelectorAll('select[data-doclist]').forEach(sel=>{
+    if(sel.dataset.filled) return;
+    const list = DOC_LISTS[sel.dataset.doclist] || [];
+    sel.innerHTML = '<option value="">Please Select</option>' + list.map(o=>`<option>${o}</option>`).join('');
+    sel.dataset.filled = '1';
+  });
+}
+function autoSplitName(prefix){
+  const src = document.getElementById(prefix+'NameAadhaar'); if(!src) return;
+  const parts = src.value.trim().split(/\s+/).filter(Boolean);
+  let f='', m='', l='';
+  if(parts.length === 1){ f = parts[0]; }
+  else if(parts.length === 2){ f = parts[0]; l = parts[1]; }
+  else if(parts.length > 2){ f = parts[0]; l = parts[parts.length-1]; m = parts.slice(1,-1).join(' '); }
+  const set = (tid, val) => { const el = document.querySelector('[data-testid="'+tid+'"]'); if(el) el.value = val; };
+  set(prefix+'-first-name', f); set(prefix+'-middle-name', m); set(prefix+'-last-name', l);
+  if(prefix === 'np'){ const n2 = document.getElementById('npNameAadhaar2'); if(n2) n2.value = src.value; }
+}
+
 const PAN_FORM_HOSTS = ['hold-new','hold-csf'];
 function initPanForms(){
   PAN_FORM_HOSTS.forEach(key=>{
@@ -552,10 +637,12 @@ async function handlePanSubmit(e){
 let csfFormInitialized = false;
 async function initCsfForm(){
   uploadedDocs = {};
-  if(csfFormInitialized) return;
-  csfFormInitialized = true;
-  await populateStateSelect('csfAddrState');
-  await populateStateSelect('csfAoStateSelect');
+  if(!csfFormInitialized){
+    csfFormInitialized = true;
+    await populateStateSelect('csfAddrState');
+    await populateStateSelect('csfAoStateSelect');
+  }
+  populateDocLists();
 }
 async function onCsfAoStateChange(){
   const state = document.getElementById('csfAoStateSelect').value;
@@ -631,13 +718,34 @@ async function handleCsfSubmit(e){
 
 let newPanFormInitialized = false;
 async function initNewPanForm(){
-  if(newPanFormInitialized) return;
-  newPanFormInitialized = true;
-  await populateStateSelect('npAddrState');
-  await populateStateSelect('aoStateSelect');
-  await populateStateSelect('npRepState');
-  initPanStepper();
-  onApplicantTypeChange();
+  if(!newPanFormInitialized){
+    newPanFormInitialized = true;
+    await populateStateSelect('npAddrState');
+    await populateStateSelect('aoStateSelect');
+    await populateStateSelect('npRepState');
+    initPanStepper();
+    onApplicantTypeChange();
+  }
+  populateDocLists();
+  updateNewPanSummary();
+}
+function resolveRoleRate(pricing, ptype, role){
+  const p = (pricing || {})[ptype];
+  if(p && typeof p === 'object'){ const v = p[role]; return Number(v != null ? v : (p.retailer != null ? p.retailer : 0)); }
+  if(p == null) return ptype === 'New PAN' ? 107 : 85;
+  return Number(p);
+}
+function formatInr(n){ return Number(n).toLocaleString('en-IN', {minimumFractionDigits:0, maximumFractionDigits:2}); }
+async function updateNewPanSummary(){
+  try{
+    const [s, me] = await Promise.all([api('/settings'), api('/auth/me')]);
+    APP.user = me;
+    const charge = resolveRoleRate(s.pricing, 'New PAN', APP.role);
+    const bal = Number(me.wallet_balance || 0);
+    const wEl = document.getElementById('npWalletBal'); if(wEl) wEl.textContent = '₹' + formatInr(bal);
+    const cEl = document.getElementById('npServiceCharge'); if(cEl) cEl.textContent = '− ₹' + formatInr(charge);
+    const rEl = document.getElementById('npRemainBal'); if(rEl) rEl.textContent = '₹' + formatInr(Math.max(0, bal - charge));
+  }catch(e){}
 }
 let STATES_CACHE = null;
 async function populateStateSelect(selectId){
@@ -725,14 +833,21 @@ function updatePanStepperHighlight(){
 }
 async function handleNewPanSubmit(e){
   e.preventDefault();
-  const nameEl = document.querySelector('#npSec-applicant input[placeholder*="Full name"]');
+  const tv = (tid) => { const el = document.querySelector('[data-testid="'+tid+'"]'); return el ? el.value.trim() : ''; };
+  const aadhaarName = document.getElementById('npNameAadhaar');
+  const fullName = aadhaarName && aadhaarName.value.trim() ? aadhaarName.value.trim()
+    : [tv('np-first-name'), tv('np-middle-name'), tv('np-last-name')].filter(Boolean).join(' ') || 'New Applicant';
   const body = {
-    type:'New PAN', applicant_name: (nameEl && nameEl.value) ? nameEl.value : 'New Applicant',
+    type:'New PAN', applicant_name: fullName,
     applicant_type: document.getElementById('npApplicantTypeDisplay').value,
     state: document.getElementById('aoStateSelect').value, city: document.getElementById('aoCitySelect').value,
     area_code: document.getElementById('aoAreaCode').value, ao_type: document.getElementById('aoTypeField').value,
     range_code: document.getElementById('aoRangeCode').value, ao_number: document.getElementById('aoNumberField').value,
-    form_data: { documents: uploadedDocs },
+    form_data: {
+      name_as_aadhaar: fullName, name_on_card: tv('np-name-on-card'), pan_card_type: tv('np-pan-card-type'),
+      first_name: tv('np-first-name'), middle_name: tv('np-middle-name'), last_name: tv('np-last-name'),
+      dob: tv('np-dob'), gender: tv('np-gender'), documents: uploadedDocs,
+    },
   };
   try{ const r = await api('/pan-applications', {method:'POST', body}); showToast('Application Submitted', r.message, 'success'); goTo('pan-status'); }
   catch(err){ showToast('Submission Failed', err.message, 'danger'); }
@@ -775,24 +890,48 @@ async function renderPanStatusTable(filter=''){
   host.innerHTML = (data.length ? desktop + mobile : `<div class="text-soft text-center py-4" style="font-size:.88rem;">No applications found.</div>`);
 }
 function filterPanStatus(val){ renderPanStatusTable(val); }
+function fmtLabel(k){ return k.replace(/_/g,' ').replace(/\b\w/g, c=>c.toUpperCase()); }
+function copyText(btn, text){
+  navigator.clipboard.writeText(text).then(()=>{
+    showToast('Copied', 'Copied to clipboard.', 'success');
+    if(btn){ const i = btn.querySelector('i'); if(i){ const o=i.className; i.className='fa-solid fa-check'; setTimeout(()=>i.className=o, 1200); } }
+  }).catch(()=>showToast('Copy Failed','Could not copy.','danger'));
+}
+function copyAllPanDetail(){
+  const lines = (window._panDetailRows||[]).map(([k,v])=>`${k}: ${v}`).join('\n');
+  copyText(null, lines);
+}
 function openPanDetail(appId){
   const p = lastPanData.find(x=>x.app_id===appId); if(!p) return;
   document.getElementById('panDetailTitle').textContent = p.app_id;
   const fd = p.form_data || {};
-  const rows = [
-    ['Applicant Name', p.applicant_name], ['PAN Type', p.type], ['Status', p.status], ['Date', p.date],
-    ['Applicant Type', p.applicant_type||'-'], ['State', fd.state||'-'], ['City', fd.city||'-'],
-    ['Area Code', fd.area_code||'-'], ['AO Type', fd.ao_type||'-'], ['Range Code', fd.range_code||'-'],
-    ['AO Number', fd.ao_number||'-'], ['Remark', p.remark||'-'], ['Receipt', p.receipt_name||'-'],
+  const isAdmin = APP.role === 'superadmin';
+  const corr = Array.isArray(fd.corrections) ? fd.corrections.join(', ') : '';
+  let rows = [
+    ['Application ID', p.app_id], ['Applicant Name', p.applicant_name], ['PAN Type', p.type],
+    ['Status', p.status], ['Date', p.date], ['Applicant Type', p.applicant_type||'-'],
   ];
-  document.getElementById('panDetailBody').innerHTML = rows.map(([k,v]) =>
-    `<div class="col-6"><div class="text-soft" style="font-size:.72rem;">${k}</div><div class="fw-semibold" style="font-size:.85rem;word-break:break-word;">${v}</div></div>`).join('');
+  const fdOrder = ['pan_number','name_on_card','first_name','middle_name','last_name','dob','gender',
+    'father_first','mother_first','name_as_aadhaar','aadhaar','mobile','email',
+    'num_documents','state','city','area_code','ao_type','range_code','ao_number'];
+  fdOrder.forEach(k=>{ if(fd[k]) rows.push([fmtLabel(k), fd[k]]); });
+  if(corr) rows.push(['Corrections Requested', corr]);
+  rows.push(['Acknowledgement No.', p.acknowledgement_number||'-']);
+  rows.push(['Remark', p.remark||'-']);
+  rows.push(['Receipt', p.receipt_name||'-']);
+  window._panDetailRows = rows;
+  let html = rows.map(([k,v]) =>
+    `<div class="col-6"><div class="text-soft d-flex align-items-center gap-1" style="font-size:.72rem;">${k}`+
+    (isAdmin ? ` <button type="button" class="row-action-btn" style="padding:0 .3rem;" onclick="copyText(this, ${JSON.stringify(String(v)).replace(/"/g,'&quot;')})"><i class="fa-regular fa-copy" style="font-size:.7rem;"></i></button>` : '')+
+    `</div><div class="fw-semibold" style="font-size:.85rem;word-break:break-word;">${v}</div></div>`).join('');
+  if(isAdmin) html = `<div class="col-12 mb-1"><button type="button" class="btn btn-soft btn-sm" onclick="copyAllPanDetail()" data-testid="pan-copy-all-btn"><i class="fa-regular fa-copy me-1"></i>Copy All Details</button></div>` + html;
   const docs = fd.documents || {};
   const docKeys = Object.keys(docs);
   if(docKeys.length){
-    document.getElementById('panDetailBody').innerHTML += `<div class="col-12 mt-2"><div class="text-soft" style="font-size:.72rem;">Uploaded Documents</div>` +
-      docKeys.map(k=>`<a href="${docs[k]}" target="_blank" class="badge-pill bd-submitted me-1" style="text-decoration:none;"><i class="fa-solid fa-paperclip me-1"></i>${k}</a>`).join('') + `</div>`;
+    html += `<div class="col-12 mt-2"><div class="text-soft" style="font-size:.72rem;">Uploaded Documents</div>` +
+      docKeys.map(k=>`<a href="${docs[k]}" target="_blank" class="badge-pill bd-submitted me-1" style="text-decoration:none;"><i class="fa-solid fa-paperclip me-1"></i>${fmtLabel(k)}</a>`).join('') + `</div>`;
   }
+  document.getElementById('panDetailBody').innerHTML = html;
   new bootstrap.Modal(document.getElementById('panDetailModal')).show();
 }
 function openReceipt(appId){
@@ -816,6 +955,7 @@ let panReviewReceiptFile = null;
 function openPanReviewModal(appId){
   document.getElementById('panReviewAppId').value = appId;
   document.getElementById('panReviewRemarkInput').value = '';
+  document.getElementById('panReviewAckInput').value = '';
   panReviewReceiptFile = null;
   document.getElementById('panReviewReceiptLabel').textContent = 'Tap to upload receipt';
   setPanReviewAction('Approved');
@@ -826,12 +966,16 @@ function setPanReviewAction(action){
   const tabs = {Approved:'panReviewTabAccept', Rejected:'panReviewTabReject', Hold:'panReviewTabHold'};
   Object.entries(tabs).forEach(([key, id])=>{ document.getElementById(id).className = key===action ? 'btn btn-sm flex-grow-1 btn-navy' : 'btn btn-sm flex-grow-1 btn-soft'; });
   const receiptBox = document.getElementById('panReviewReceiptBox');
+  const ackBox = document.getElementById('panReviewAckBox');
   const remarkLabel = document.getElementById('panReviewRemarkLabel');
   const remarkHint = document.getElementById('panReviewRemarkHint');
   const title = document.getElementById('panReviewModalTitle');
-  if(action === 'Approved'){ receiptBox.style.display='block'; remarkLabel.textContent='Remark (Optional)'; remarkHint.textContent='Receipt upload is mandatory when accepting an application.'; title.textContent='Accept Application'; }
-  else if(action === 'Rejected'){ receiptBox.style.display='none'; remarkLabel.innerHTML='Remark <span class="required-star">*</span>'; remarkHint.textContent='Explain why this application is being rejected.'; title.textContent='Reject Application'; }
-  else { receiptBox.style.display='none'; remarkLabel.innerHTML='Remark <span class="required-star">*</span>'; remarkHint.textContent='This remark will be shown to the submitter so they can correct it.'; title.textContent='Hold Application'; }
+  const showApprove = action === 'Approved';
+  receiptBox.style.display = showApprove ? 'block' : 'none';
+  if(ackBox) ackBox.style.display = showApprove ? 'block' : 'none';
+  if(showApprove){ remarkLabel.textContent='Remark (Optional)'; remarkHint.textContent='Receipt upload and acknowledgement number are mandatory when accepting.'; title.textContent='Accept Application'; }
+  else if(action === 'Rejected'){ remarkLabel.innerHTML='Remark <span class="required-star">*</span>'; remarkHint.textContent='Explain why this application is being rejected.'; title.textContent='Reject Application'; }
+  else { remarkLabel.innerHTML='Remark <span class="required-star">*</span>'; remarkHint.textContent='This remark will be shown to the submitter so they can correct it.'; title.textContent='Hold Application'; }
 }
 function onPanReviewReceiptChosen(input){
   if(input.files && input.files[0]){ panReviewReceiptFile = input.files[0]; document.getElementById('panReviewReceiptLabel').textContent = panReviewReceiptFile.name; }
@@ -839,13 +983,15 @@ function onPanReviewReceiptChosen(input){
 async function submitPanReview(){
   const appId = document.getElementById('panReviewAppId').value;
   const remark = document.getElementById('panReviewRemarkInput').value.trim();
+  const acknowledgement_number = document.getElementById('panReviewAckInput').value.trim();
   if(panReviewSelectedAction === 'Approved' && !panReviewReceiptFile){ showToast('Receipt Required', 'Please upload a receipt before accepting.', 'danger'); return; }
+  if(panReviewSelectedAction === 'Approved' && !acknowledgement_number){ showToast('Acknowledgement Required', 'Please enter the acknowledgement number.', 'danger'); return; }
   if((panReviewSelectedAction === 'Rejected' || panReviewSelectedAction === 'Hold') && !remark){ showToast('Remark Required', 'Please add a remark.', 'danger'); return; }
   let receipt_name = '';
   let receipt_path = '';
   try{
     if(panReviewSelectedAction === 'Approved' && panReviewReceiptFile){ const up = await apiUpload(panReviewReceiptFile); receipt_name = up.filename; receipt_path = up.path; }
-    await api('/pan-applications/'+appId+'/review', {method:'POST', body:{action:panReviewSelectedAction, remark, receipt_name, receipt_path}});
+    await api('/pan-applications/'+appId+'/review', {method:'POST', body:{action:panReviewSelectedAction, remark, receipt_name, receipt_path, acknowledgement_number}});
     bootstrap.Modal.getInstance(document.getElementById('panReviewModal'))?.hide();
     const msg = {Approved:`${appId} accepted. Submitter notified.`, Rejected:`${appId} rejected. Submitter notified.`, Hold:`${appId} on hold. Submitter can resubmit.`};
     showToast('Application Updated', msg[panReviewSelectedAction], panReviewSelectedAction==='Approved'?'success':panReviewSelectedAction==='Rejected'?'danger':'warning');
@@ -942,21 +1088,77 @@ async function renderWalletHistoryTable(filter=''){
 }
 function filterWalletHistory(val){ renderWalletHistoryTable(val); }
 
-/* ---------------- RATE SETUP ---------------- */
+/* ---------------- RATE SETUP (per-role matrix) ---------------- */
+const RATE_SERVICES = ['New PAN', 'CSF PAN'];
+const RATE_ROLES = [['superdistributor','Super Distributor'],['distributor','Distributor'],['retailer','Retailer']];
 async function renderRateSetup(){
-  const tbody = document.getElementById('rateSetupTableBody');
-  if(!tbody) return;
-  try{ const s = await api('/settings'); const pricing = s.pricing || {};
-    tbody.innerHTML = Object.entries(pricing).map(([name, val]) => `<tr><td class="fw-semibold">${name}</td><td>₹${Number(val).toFixed(2)}</td>
-      <td><button class="row-action-btn" onclick="editRate('${name}', ${val})"><i class="fa-regular fa-pen-to-square"></i></button></td></tr>`).join('');
-  }catch(err){ showToast('Error', err.message, 'danger'); }
+  const host = document.getElementById('rateSetupHost');
+  if(!host) return;
+  let pricing = {};
+  try{ const s = await api('/settings'); pricing = s.pricing || {}; }catch(err){ showToast('Error', err.message, 'danger'); return; }
+  const rateVal = (svc, roleKey) => {
+    const p = pricing[svc];
+    if(p && typeof p === 'object') return p[roleKey] != null ? p[roleKey] : '';
+    if(p != null) return p;
+    return svc === 'New PAN' ? 107 : 85;
+  };
+  let html = `<div class="table-responsive"><table class="table table-modern mb-0"><thead><tr><th>Service</th>` +
+    RATE_ROLES.map(([,lbl])=>`<th>${lbl} (₹)</th>`).join('') + `</tr></thead><tbody>`;
+  RATE_SERVICES.forEach(svc=>{
+    html += `<tr><td class="fw-semibold">${svc}</td>` + RATE_ROLES.map(([rk])=>
+      `<td><input type="number" class="form-control form-control-sm rate-input" data-svc="${svc}" data-role="${rk}" data-testid="rate-${svc.replace(/\s/g,'').toLowerCase()}-${rk}" value="${rateVal(svc,rk)}" style="max-width:120px;"></td>`).join('') + `</tr>`;
+  });
+  html += `</tbody></table></div><button class="btn btn-navy btn-touch mt-3" onclick="saveAllRates()" data-testid="save-rates-btn"><i class="fa-solid fa-floppy-disk me-1"></i> Save Rates</button>`;
+  host.innerHTML = html;
 }
-async function editRate(serviceName, current){
-  const val = prompt(`New charge for ${serviceName} (₹)`, current);
-  if(val === null) return;
-  const amount = parseFloat(val); if(isNaN(amount)){ showToast('Invalid', 'Enter a valid number.', 'danger'); return; }
-  try{ const s = await api('/settings'); const pricing = {...(s.pricing||{}), [serviceName]: amount};
-    await api('/settings', {method:'PUT', body:{pricing}}); showToast('Rate Updated', `${serviceName} charge set to ₹${amount.toFixed(2)}.`, 'success'); renderRateSetup();
+async function saveAllRates(){
+  const pricing = {};
+  RATE_SERVICES.forEach(svc=>{ pricing[svc] = {}; });
+  document.querySelectorAll('.rate-input').forEach(inp=>{
+    const v = parseFloat(inp.value);
+    pricing[inp.dataset.svc][inp.dataset.role] = isNaN(v) ? 0 : v;
+  });
+  try{ await api('/settings', {method:'PUT', body:{pricing}}); showToast('Rates Updated', 'Per-role service rates saved.', 'success'); }
+  catch(err){ showToast('Error', err.message, 'danger'); }
+}
+
+/* ---------------- ADD BALANCE (Admin) ---------------- */
+let addBalUsers = [];
+function renderAddBalance(){
+  const r = document.getElementById('addBalRole'); if(r) r.value = '';
+  const u = document.getElementById('addBalUser'); if(u){ u.innerHTML = '<option value="">Select Role First</option>'; u.disabled = true; }
+  const a = document.getElementById('addBalAmount'); if(a) a.value = '';
+  const w = document.getElementById('addBalCurrentWrap'); if(w) w.style.display = 'none';
+}
+async function loadAddBalUsers(){
+  const role = document.getElementById('addBalRole').value;
+  const sel = document.getElementById('addBalUser');
+  document.getElementById('addBalCurrentWrap').style.display = 'none';
+  if(!role){ sel.disabled = true; sel.innerHTML = '<option value="">Select Role First</option>'; return; }
+  sel.disabled = false; sel.innerHTML = '<option value="">Loading...</option>';
+  try{
+    addBalUsers = await api('/users?role='+role);
+    sel.innerHTML = '<option value="">Select User</option>' + addBalUsers.map(u=>`<option value="${u.id}">${u.name} (${u.user_code})</option>`).join('');
+  }catch(err){ sel.innerHTML = '<option value="">Failed to load</option>'; }
+}
+function onAddBalUserChange(){
+  const id = document.getElementById('addBalUser').value;
+  const u = addBalUsers.find(x=>x.id===id);
+  const wrap = document.getElementById('addBalCurrentWrap');
+  if(u){ document.getElementById('addBalCurrent').textContent = u.wallet || ('₹'+formatInr(u.wallet_balance||0)); wrap.style.display='block'; }
+  else wrap.style.display = 'none';
+}
+async function handleAdminCredit(e){
+  e.preventDefault();
+  const user_id = document.getElementById('addBalUser').value;
+  const amount = parseFloat(document.getElementById('addBalAmount').value);
+  if(!user_id){ showToast('Select User', 'Please select a user.', 'warning'); return; }
+  if(!amount || amount <= 0){ showToast('Invalid Amount', 'Enter a valid amount.', 'warning'); return; }
+  try{
+    const r = await api('/wallet/admin-credit', {method:'POST', body:{user_id, amount}});
+    showToast('Balance Added', r.message, 'success');
+    document.getElementById('addBalAmount').value = '';
+    loadAddBalUsers();
   }catch(err){ showToast('Error', err.message, 'danger'); }
 }
 
@@ -1116,10 +1318,45 @@ function printCertificate(){
     <script>window.onload=function(){setTimeout(function(){window.print();},300);}<\/script></body></html>`);
   w.document.close();
 }
-function renderPersonalProfile(){
+async function renderPersonalProfile(){
   if(!APP.user) return;
-  document.getElementById('profileNameDisplay').textContent = APP.user.name;
-  document.getElementById('profileRoleDisplay').textContent = APP.user.role_label + ' • ' + APP.user.user_code;
+  try{ const me = await api('/auth/me'); APP.user = me; }catch(e){}
+  const u = APP.user;
+  document.getElementById('profileNameDisplay').textContent = u.name;
+  document.getElementById('profileRoleDisplay').textContent = u.role_label + ' • ' + u.user_code;
+  const set = (id,val)=>{ const el=document.getElementById(id); if(el) el.value = val || ''; };
+  set('profileName', u.name); set('profileMobile', u.mobile); set('profileEmail', u.email);
+  set('profileShop', u.shop_name); set('profileAddress', u.address);
+  const img = document.getElementById('profileAvatarImg');
+  if(img && u.photo_path) img.src = u.photo_path;
+}
+let profilePhotoPath = '';
+async function onProfilePhotoChosen(input){
+  if(!input.files || !input.files[0]) return;
+  try{
+    const up = await apiUpload(input.files[0]);
+    profilePhotoPath = up.url || up.path;
+    const img = document.getElementById('profileAvatarImg'); if(img) img.src = profilePhotoPath;
+    showToast('Photo Selected', 'Click Update Profile to save.', 'info');
+  }catch(err){ showToast('Upload Failed', err.message, 'danger'); }
+}
+async function handleProfileUpdate(e){
+  e.preventDefault();
+  const body = {
+    name: document.getElementById('profileName').value.trim(),
+    mobile: document.getElementById('profileMobile').value.trim(),
+    email: document.getElementById('profileEmail').value.trim(),
+    shop_name: document.getElementById('profileShop').value.trim(),
+    address: document.getElementById('profileAddress').value.trim(),
+  };
+  if(profilePhotoPath) body.photo_path = profilePhotoPath;
+  try{
+    const u = await api('/profile', {method:'PUT', body});
+    APP.user = u; profilePhotoPath = '';
+    document.getElementById('desktopUserName').textContent = u.name;
+    renderPersonalProfile();
+    showToast('Profile Updated', 'Your profile details have been saved.', 'success');
+  }catch(err){ showToast('Error', err.message, 'danger'); }
 }
 
 /* ---------------- ROUTER (/ = homepage, anything else = web app) ---------------- */
